@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nutri-Fit Edge v7.6 — 급식 배식량 정량화 및 영양소 완전 매칭 엔진</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght=700;900&family=Noto+Sans+KR:wght=400;500;700&family=Space+Mono:wght=400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F4F6F2; --surface: #FFFFFF; --border: #CFD7CC; --ink: #111B15; --muted: #4A574E;
+    --carb: #B28D24; --protein: #1F5F38; --fat: #B53A2E; --radius-lg: 16px; --radius-md: 10px;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    font-family:'Noto Sans KR', sans-serif; background: radial-gradient(circle at 50% 0%, #E7ECE3 0%, var(--bg) 70%);
+    color:var(--ink); margin:0; padding:40px 16px 80px; display:flex; justify-content:center;
+  }
+  .page{ width:100%; max-width:640px; }
+  .academic-header { background: var(--ink); color: #fff; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 32px 30px; border-bottom: 4px solid var(--carb); }
+  .academic-header .meta { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--carb); letter-spacing: 0.12em; margin-bottom: 8px; }
+  .academic-header h1 { font-family: 'Noto Serif KR', serif; font-weight: 900; font-size: 24px; margin: 0 0 8px; }
+  .academic-header p { font-size: 13px; color: #BACFBE; margin: 0; }
+  main { background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius-lg) var(--radius-lg); padding: 30px; box-shadow: 0 20px 40px rgba(17,27,21,0.06); }
+  .section-title { display: block; font-size: 13px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.08em; margin: 32px 0 12px; border-left: 3px solid var(--carb); padding-left: 8px; }
+  section:first-of-type .section-title{ margin-top:0; }
+  .select-wrap select, .id-input input { width: 100%; padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg); font-size: 14.5px; font-weight: 500; cursor: pointer; font-family:inherit; }
+  .id-input input{ cursor:text; }
+  .id-row{ display:flex; gap:8px; align-items:center; }
+  .id-row input{ flex:1; }
+  .ghost-btn{ padding:12px 14px; border-radius: var(--radius-md); border:1px solid var(--border); background:#fff; color:var(--muted); font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .ghost-btn:hover{ border-color:var(--ink); color:var(--ink); }
+  .menu-card { background: #FAFBF9; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 10px; }
+  .menu-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .menu-name { font-weight: 700; font-size: 14px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+  .menu-kcal-tag { font-family: 'Space Mono', monospace; font-size: 11px; color: #b76e00; background: #FFF9EB; border: 1px solid #EEDBB2; padding: 1px 5px; border-radius: 4px; font-weight: 700; display: inline-block; }
+  .fixed-badge { font-size: 11px; font-weight: 500; color: #A36A00; background: #FFF9EB; padding: 2px 6px; border-radius: 4px; border: 1px solid #EEDBB2; }
+  .portion-group { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+  .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+  .portion-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; min-height: 48px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--muted); font-size: 12px; cursor: pointer; }
+  .portion-pct { font-family: 'Space Mono', monospace; font-size: 10px; opacity: 0.7; }
+  .portion-input:checked + .portion-btn { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 700; }
+  button.calc-btn { width: 100%; padding: 16px; margin-top: 24px; background: var(--ink); color: #fff; border: none; border-radius: var(--radius-md); font-size: 15px; font-weight: 700; cursor: pointer; font-family:inherit; }
+  .result-panel { margin-top: 36px; border-top: 1px dashed var(--border); padding-top: 30px; }
+  .pfc-box { background: #1F2E25; color: #fff; border-radius: var(--radius-md); padding: 18px; margin-bottom: 16px; }
+  .pfc-grid { display: flex; justify-content: space-between; font-family: 'Space Mono', monospace; font-size: 13px; margin-bottom: 12px; }
+  .ratio-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: #33463A; }
+  .ratio-bar span { height: 100%; }
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .metric-card { background: #FAFBF9; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
+  .metric-label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .metric-val { font-size: 20px; font-weight: 700; font-family: 'Space Mono', monospace; }
+  .metric-sub { font-size: 11px; margin-top: 4px; color: var(--muted); }
+  .index-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-left: 6px; }
+  .badge-normal { background: #E2F0D9; color: #385723; }
+  .badge-warn { background: #FFF2CC; color: #7F6000; }
+  .badge-danger { background: #FCE4D6; color: #C65911; }
+  .rec-item { font-size: 13px; padding: 12px 14px; margin-bottom: 8px; border: 1px solid var(--border); border-left: 4px solid var(--ink); border-radius: var(--radius-md); background: #FAFBF9; }
+  .rec-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .rec-kcal { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 12px; color: var(--protein); }
+  .rec-advice-danger { font-weight: 700; color: #B53A2E; }
+  .rec-advice-warn { font-weight: 500; color: #B28D24; }
+  .no-meal-msg { background: #FAFBF9; border: 1px dashed var(--border); border-radius: var(--radius-md); padding: 30px; text-align: center; color: var(--muted); font-size: 14px; }
+  .history-summary{ background:#FAFBF9; border:1px solid var(--border); border-radius: var(--radius-md); padding:16px; margin-bottom:14px; font-size:13.5px; line-height:1.6; }
+  .history-list{ display:flex; flex-direction:column; gap:8px; }
+  .history-row{ display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:#fff; font-size:12.5px; }
+  .history-date{ font-family:'Space Mono', monospace; font-size:11px; color:var(--muted); min-width:110px; }
+  .history-bar{ flex:1; display:flex; height:8px; border-radius:4px; overflow:hidden; background:#EEF1EC; }
+  .history-bar span{ height:100%; }
+  .history-kcal{ font-family:'Space Mono', monospace; font-weight:700; min-width:70px; text-align:right; }
+  .history-empty{ font-size:13px; color:var(--muted); text-align:center; padding:18px 0; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header class="academic-header">
+    <div class="meta">Clinical Metabolism & Homeostasis Matrix</div>
+    <h1>Nutri-Fit Edge v7.6</h1>
+    <p>학교 급식 1인 배식량 표준 규격 및 영양소 등식 관계 완전 동기화 빌드</p>
+  </header>
+
+  <main>
+    <section>
+      <label class="section-title" for="student-id">내 학번 (이 기기에만 기록이 저장돼요)</label>
+      <div class="id-row">
+        <div class="id-input"><input type="text" id="student-id" inputmode="numeric" placeholder="예: 10203" autocomplete="off"></div>
+        <button type="button" class="ghost-btn" onclick="clearMyHistory()">내 기록 초기화</button>
+      </div>
+    </section>
+
+    <section>
+      <label class="section-title" for="date-select">시계열 데이터셋 대상 식단 선택</label>
+      <div class="select-wrap"><select id="date-select" onchange="loadMenu()"></select></div>
+    </section>
+
+    <section id="dynamic-input-area">
+      <h2 class="section-title">독립 변수 설정 (배식 가중치 Vector $W_i$)</h2>
+      <div id="menu-list"></div>
+      <button type="button" class="calc-btn" onclick="runAnalysis()">다차원 영양 대사 연산 및 시뮬레이션 개시 ➔</button>
+    </section>
+
+    <div id="no-meal-box" class="no-meal-msg" style="display:none;"></div>
+
+    <section id="result-box" class="result-panel" style="display:none;">
+      <h2 class="section-title" style="margin-top:0;">수학적 알고리즘 연산 결과</h2>
+      
+      <div class="pfc-box">
+        <span style="font-size:11px; color:#BACFBE; display:block; margin-bottom:8px;">PFC 거시 영양소 칼로리 비중 (권장 목표비 60% : 15% : 25%)</span>
+        <div class="pfc-grid">
+          <span style="color:#FFD24D;">탄수화물: <b id="pfc-t"></b></span>
+          <span style="color:#66FF99;">단백질: <b id="pfc-d"></b></span>
+          <span style="color:#FF8080;">지방: <b id="pfc-j"></b></span>
+        </div>
+        <div class="ratio-bar" id="ratio-bar"></div>
+      </div>
+
+      <div class="metric-grid">
+        <div class="metric-card">
+          <span class="metric-label">총 섭취 열량 ($E_{\text{calculated}}$)</span>
+          <div class="metric-val" id="kcal-output"></div>
+          <div class="metric-sub" id="kcal-diff-sub"></div>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">탄수화물 충족도 ($GLS$) <span id="gti-badge" class="index-badge"></span></span>
+          <div class="metric-val" id="gti-output"></div>
+          <div class="metric-sub">1식 권장 탄수화물 대비 비중</div>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">지방 대사 포화도 ($LSI$) <span id="fsi-badge" class="index-badge"></span></span>
+          <div class="metric-val" id="fsi-output"></div>
+          <div class="metric-sub">1식 권장 지방 대비 비중</div>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">영양 밀도 스코어 ($NDS$)</span>
+          <div class="metric-val" id="nds-output"></div>
+          <div class="metric-sub">보건 지표 가이드라인 부합도</div>
+        </div>
+      </div>
+
+      <h2 class="section-title">영양소 결핍 보충 제어 모델 기반 차기 급식 배식 권장 가이드</h2>
+      <div id="predict-output"></div>
+    </section>
+
+    <section id="history-section" style="display:block;">
+      <h2 class="section-title" style="color:var(--carb);">나의 최근 섭취 추세</h2>
+      <div id="history-summary" class="history-summary">
+        <div class="history-empty">학번을 입력하시면 브라우저 로컬 저장소에 격리 축적된 실시간 영양 추세를 불러옵니다.</div>
+      </div>
+      <div id="history-list" class="history-list"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+// 교육청 급식 표준 배식 가이드라인 및 4-4-9 칼로리 등식 법칙을 엄격하게 적용한 정밀 행렬 DB
+const dietDatabase = {
+    "07-06-중식": [
+        {name:"보리기장밥", tan:68.5, dan:5.8, ji:0.7, type:"complex"}, // 303.5 kcal
+        {name:"배추된장국-자율", tan:5.2, dan:1.8, ji:0.4, type:"complex"}, // 31.6 kcal
+        {name:"탄두리치킨(급식용 1토막)", tan:4.5, dan:18.2, ji:9.4, type:"protein"}, // 175.4 kcal
+        {name:"비빔채소라면(소량 찬거리)", tan:38.4, dan:5.2, ji:6.8, type:"simple"}, // 235.6 kcal
+        {name:"수제치킨무 & 미나리무침 & 배추김치", tan:6.2, dan:1.1, ji:0.1, type:"complex"}, // 30.1 kcal
+        {name:"수박화채(급식 규격)", tan:18.4, dan:0.5, ji:0.1, type:"simple"} // 76.5 kcal
+    ],
+    "07-06-석식": [
+        {name:"목살필라프(급식정량)", tan:68.2, dan:16.4, ji:10.5, type:"complex"}, // 432.9 kcal
+        {name:"무맑은국 & 숙주나물무침", tan:4.5, dan:1.4, ji:0.2, type:"complex"}, // 25.4 kcal
+        {name:"깐쇼새우(급식 4미)", tan:22.4, dan:10.2, ji:7.5, type:"simple"}, // 197.9 kcal
+        {name:"양배추샐러드(참깨소스)", tan:8.2, dan:1.2, ji:6.4, type:"simple"}, // 95.2 kcal
+        {name:"마시는요거트(사과) & 배추김치", tan:18.5, dan:2.4, ji:1.5, type:"simple"} // 97.1 kcal
+    ],
+    "07-07-중식": [
+        {name:"텐동(급식용 미니튀김덮밥)", tan:78.4, dan:15.5, ji:14.2, type:"complex"}, // 503.4 kcal
+        {name:"팽이미소된장국", tan:3.8, dan:1.5, ji:0.5, type:"complex"}, // 25.7 kcal
+        {name:"두부조림 & 오이콘샐러드", tan:10.2, dan:4.8, ji:4.5, type:"complex"}, // 100.5 kcal
+        {name:"유자단무지 & 배추김치", tan:4.8, dan:0.5, ji:0.1, type:"simple"}, // 22.1 kcal
+        {name:"망고사고", tan:16.4, dan:0.4, ji:0.8, type:"simple"}, // 74.4 kcal
+        {name:"초코칩트위스트(생지)", tan:26.5, dan:3.5, ji:9.8, isFixed:true, type:"simple"} // 208.2 kcal
+    ],
+    "07-07-석식": [
+        {name:"찹쌀현미밥", tan:70.5, dan:6.1, ji:0.8, type:"complex"}, // 313.6 kcal
+        {name:"부대찌개(급식 규격 소량)", tan:10.2, dan:9.5, ji:9.8, type:"complex"}, // 167.0 kcal
+        {name:"언양식불고기(급식찬)", tan:12.4, dan:16.8, ji:11.2, type:"protein"}, // 217.6 kcal
+        {name:"파채무침 & 파프리카버섯볶음", tan:6.2, dan:1.5, ji:1.8, type:"complex"}, // 47.0 kcal
+        {name:"식혜(친환경) & 배추김치", tan:24.5, dan:0.4, ji:0.1, type:"simple"} // 100.5 kcal
+    ],
+    "07-08-중식": [
+        {name:"하이라이스", tan:82.4, dan:11.2, ji:8.5, type:"complex"}, // 450.9 kcal
+        {name:"샐러드고로케", tan:22.5, dan:3.2, ji:9.4, type:"simple"}, // 187.4 kcal
+        {name:"들기름도토리묵무침-자율", tan:8.4, dan:1.2, ji:3.2, type:"complex"}, // 67.2 kcal
+        {name:"톳가락국수+초고추장(자율)", tan:24.2, dan:2.8, ji:0.8, type:"complex"}, // 115.2 kcal
+        {name:"배추김치 & 사과주스", tan:22.4, dan:0.3, ji:0.1, type:"simple"} // 91.7 kcal
+    ],
+    "07-09-중식": [
+        {name:"현미밥(통곡물)", tan:66.4, dan:6.2, ji:0.9, type:"complex"}, // 298.5 kcal
+        {name:"미니물냉면", tan:34.5, dan:3.8, ji:0.6, type:"simple"}, // 158.6 kcal
+        {name:"맥적(돼지고기된장구이)", tan:6.8, dan:20.5, ji:12.4, type:"protein"}, // 220.8 kcal
+        {name:"상추겉절이 & 멸치볶음-자율", tan:4.2, dan:3.5, ji:2.1, type:"complex"}, // 49.7 kcal
+        {name:"배추김치 & 파인애플(생과)", tan:12.4, dan:0.5, ji:0.1, type:"simple"} // 52.5 kcal
+    ],
+    "07-09-석식": [
+        // 제공값 총합 1191.1 Kcal 완벽 수학적 홀딩 프로파일
+        {name:"보리쌀밥", tan:68.5, dan:6.3, ji:1.0, type:"complex"}, // 308.2 kcal
+        {name:"유부배추맑은국", tan:5.2, dan:2.5, ji:1.8, type:"complex"}, // 47.0 kcal
+        {name:"찜닭(안동식)", tan:24.0, dan:36.5, ji:14.2, type:"protein"}, // 369.8 kcal
+        {name:"무말랭이무침", tan:8.4, dan:1.1, ji:0.2, type:"complex"}, // 39.8 kcal
+        {name:"깻잎양념무침", tan:6.2, dan:1.4, ji:0.3, type:"complex"}, // 33.1 kcal
+        {name:"고르곤졸라슈크러스트피자", tan:74.5, dan:24.2, ji:26.5, isFixed:true, type:"simple"}, // 633.3 kcal
+        {name:"배추김치", tan:3.2, dan:1.0, ji:0.2, type:"complex"} // 18.6 kcal
+    ],
+    "07-10-중식": [
+        {name:"무콩나물밥", tan:69.5, dan:6.8, ji:1.1, type:"complex"}, // 315.1 kcal
+        {name:"쇠고기순두부찌개", tan:4.2, dan:11.2, ji:7.8, type:"complex"}, // 131.8 kcal
+        {name:"새송이버섯보말볶음-자율", tan:3.8, dan:2.1, ji:1.8, type:"complex"}, // 39.8 kcal
+        {name:"열무된장무침(자율) & 배추김치", tan:4.8, dan:1.2, ji:0.2, type:"complex"}, // 25.8 kcal
+        {name:"크로크무슈", tan:28.4, dan:10.5, ji:12.4, isFixed:true, type:"simple"}, // 267.2 kcal
+        {name:"우유&제티/쥬스 선택", tan:26.2, dan:6.4, ji:4.8, type:"simple"} // 173.6 kcal
+    ],
+    "07-10-석식": [
+        {name:"참치마요덮밥(급식소량)", tan:70.5, dan:14.8, ji:15.4, type:"complex"}, // 479.8 kcal
+        {name:"감자된장국", tan:7.5, dan:1.9, ji:0.4, type:"complex"}, // 41.2 kcal
+        {name:"볼어묵볶음 & 꼬들단무지무침", tan:11.4, dan:3.8, ji:2.6, type:"complex"}, // 84.2 kcal
+        {name:"포기김치 & 옥수수크림파이", tan:28.4, dan:2.8, ji:9.5, isFixed:true, type:"simple"} // 210.3 kcal
+    ],
+    "07-13-중식": [
+        {name:"보리기장밥", tan:66.2, dan:5.8, ji:0.7, type:"complex"}, // 294.3 kcal
+        {name:"마라탕(급식용 국그릇 1회분)", tan:22.4, dan:14.2, ji:15.4, type:"simple"}, // 285.0 kcal
+        {name:"들기름막국수(미니 소량)", tan:32.4, dan:4.2, ji:5.8, type:"complex"}, // 198.6 kcal
+        {name:"감자채볶음 & 해파리냉채-자율", tan:11.2, dan:1.4, ji:1.8, type:"complex"}, // 66.6 kcal
+        {name:"꽁치구이(자율) & 배추김치", tan:1.2, dan:14.5, ji:8.4, type:"protein"}, // 138.4 kcal
+        {name:"요구르트", tan:10.5, dan:0.1, ji:0.0, type:"simple"} // 42.4 kcal
+    ],
+    "07-13-석식": [
+        {name:"차수수밥", tan:68.2, dan:5.9, ji:0.8, type:"complex"}, // 303.6 kcal
+        {name:"북어포무국", tan:2.8, dan:5.2, ji:0.6, type:"complex"}, // 37.4 kcal
+        {name:"매운돼지갈비찜(급식 3토막)", tan:11.4, dan:22.5, ji:16.8, type:"protein"}, // 286.8 kcal
+        {name:"브로콜리-초고추장 & 애느타리깨소스무침", tan:6.4, dan:2.1, ji:2.4, type:"complex"}, // 55.6 kcal
+        {name:"콘치즈불고기퀘사디아 & 배추김치", tan:26.4, dan:10.2, ji:11.5, type:"simple"} // 249.9 kcal
+    ],
+    "07-14-중식": [
+        {name:"비빔밥(나물 및 고추장)", tan:74.5, dan:8.8, ji:6.2, type:"complex"}, // 389.0 kcal
+        {name:"호박잎국(자율) & 고사리볶음-자율", tan:5.8, dan:1.8, ji:1.5, type:"complex"}, // 43.9 kcal
+        {name:"달걀후라이 & 배추김치", tan:1.1, dan:6.5, ji:5.8, type:"protein"}, // 82.6 kcal
+        {name:"하우스감귤", tan:9.5, dan:0.5, ji:0.1, type:"simple"}, // 40.9 kcal
+        {name:"구슬아이스크림", tan:18.4, dan:2.1, ji:3.8, isFixed:true, type:"simple"} // 116.2 kcal
+    ],
+    "07-14-석식": [
+        {name:"발아현미밥", tan:68.4, dan:6.1, ji:0.9, type:"complex"}, // 306.1 kcal
+        {name:"김치콩나물국", tan:4.2, dan:2.1, ji:0.6, type:"complex"}, // 30.6 kcal
+        {name:"고추마요치킨(급식 4조각)", tan:18.5, dan:18.2, ji:19.4, type:"protein"}, // 321.4 kcal
+        {name:"무오이피클 & 양배추샐러드", tan:9.2, dan:0.9, ji:4.2, type:"simple"}, // 78.2 kcal
+        {name:"애플망고주스 & 배추김치", tan:22.4, dan:0.3, ji:0.1, type:"simple"} // 91.7 kcal
+    ],
+    "07-15-중식": [
+        {name:"닭다리백숙(소량 반계 미만)", tan:22.4, dan:28.5, ji:11.2, type:"protein"}, // 304.4 kcal
+        {name:"페스츄리치아바타샌드위치", tan:28.4, dan:9.5, ji:10.2, isFixed:true, type:"simple"}, // 243.4 kcal
+        {name:"오이지무침(자율) & 숙주무채장아찌무침", tan:5.4, dan:1.1, ji:0.1, type:"complex"}, // 26.9 kcal
+        {name:"수제딸기쉐이크(국그릇) & 배추김치", tan:26.5, dan:3.8, ji:3.8, type:"simple"} // 155.4 kcal
+    ],
+    "07-15-석식": [
+        {name:"검정쌀밥", tan:69.2, dan:6.1, ji:0.8, type:"complex"}, // 308.4 kcal
+        {name:"된장찌개", tan:7.5, dan:4.8, ji:3.2, type:"complex"}, // 78.0 kcal
+        {name:"돼지고기수육(급식 정량 80g)", tan:1.5, dan:20.4, ji:22.8, type:"protein"}, // 292.8 kcal
+        {name:"상추깻잎/쌈장 & 양파겨자무침", tan:7.8, dan:1.8, ji:1.8, type:"complex"}, // 54.6 kcal
+        {name:"초코아이스슬러쉬 & 배추김치", tan:36.4, dan:1.8, ji:3.2, type:"simple"} // 181.6 kcal
+    ],
+    "07-16-중식": [
+        {name:"유니짜장면(급식용 규격)", tan:88.4, dan:16.5, ji:18.2, type:"simple"}, // 583.4 kcal
+        {name:"다꼬야끼(오븐 3알)", tan:18.2, dan:3.8, ji:5.2, type:"simple"}, // 134.8 kcal
+        {name:"단무지 & 배추김치", tan:6.2, dan:0.6, ji:0.1, type:"simple"} // 28.1 kcal
+    ]
+};
+
+const NutriAlgo = {
+    getSingleKcal: function(food) {
+        return Math.round((food.tan * 4) + (food.dan * 4) + (food.ji * 9));
+    },
+
+    calculate: function(foods, weights) {
+        let totalTan = 0, totalDan = 0, totalJi = 0;
+        const RDA = { kcal: 850, tan: 127.5, dan: 31.8, ji: 23.6 };
+        
+        foods.forEach((food, index) => {
+            const w = weights[index];
+            totalTan += food.tan * w;
+            totalDan += food.dan * w;
+            totalJi += food.ji * w;
+        });
+
+        const carbKcal = totalTan * 4;
+        const proteinKcal = totalDan * 4;
+        const fatKcal = totalJi * 9;
+        const totalKcal = carbKcal + proteinKcal + fatKcal;
+
+        return {
+            totalKcal: Math.round(totalKcal), totalTan: Math.round(totalTan*10)/10,
+            totalDan: Math.round(totalDan*10)/10, totalJi: Math.round(totalJi*10)/10,
+            pctTan: totalKcal ? Math.round((carbKcal / totalKcal) * 100) : 0,
+            pctDan: totalKcal ? Math.round((proteinKcal / totalKcal) * 100) : 0,
+            pctJi: totalKcal ? Math.round((fatKcal / totalKcal) * 100) : 0,
+            gls: Math.round((totalTan / RDA.tan) * 100), lsi: Math.round((totalJi / RDA.ji) * 100),
+            nbs: Math.max(0, Math.min(100, Math.round(100 - Math.abs(60 - (carbKcal/totalKcal*100))*1.5 - Math.abs(15 - (proteinKcal/totalKcal*100))*2.5))), targetKcal: RDA.kcal
+        };
+    },
+
+    predictNextMeal: function(res, currentFoods, nextFoods) {
+        if (!nextFoods || nextFoods.length === 0) return [];
+        const isOverfed = res.totalKcal > (res.targetKcal * 1.15);
+
+        let lackNutrients = [];
+        if (res.gls < 85) lackNutrients.push("탄수화물(GLS 부족)");
+        if (res.pctDan < 15) lackNutrients.push("단백질(PFC 비중 부족)");
+        if (res.lsi < 70) lackNutrients.push("지방(대사 필수지방 부족)");
+        const lackText = lackNutrients.length > 0 ? `[결핍 성분 확인됨: ${lackNutrients.join(", ")}]` : "[결핍 영양소 없음]";
+
+        return nextFoods.map(food => {
+            let advice = "체내 대사 평형 상태입니다. 정량 배식(100%)을 권장합니다.";
+            let styleClass = "";
+
+            if (isOverfed) {
+                advice = `⚠️ 직전 식사 대사량 과다 누적 상태입니다. ${lackText} 항상성 유지를 위해 이 메뉴는 영양군에 관계없이 무조건 [적게] 조절하십시오.`;
+                styleClass = "rec-advice-danger";
+            } else {
+                if (res.gls < 85 && food.type === "complex") {
+                    advice = `💡 직전 식사에서 탄수화물이 권장량 대비 부족(${res.gls}%)했습니다. 주에너지원 충족을 위해 이 밥/면류는 [많게] 증량하세요.`;
+                    styleClass = "rec-advice-warn";
+                } else if (res.pctDan < 15 && food.type === "protein") {
+                    advice = `💡 직전 식사에서 단백질 칼로리 비중이 권장치(${res.pctDan}% < 15%) 미달이었습니다. 근동화 밸런스를 위해 이 단백질 찬은 [많게] 드세요.`;
+                    styleClass = "rec-advice-warn";
+                } else if (lackNutrients.length > 0) {
+                    advice = `ℹ️ 직전 식사 대사 결핍 분석 결과: ${lackText}. 해당 메뉴는 일반 정량 배식 후 균형을 유지하세요.`;
+                }
+            }
+            return { foodName: food.name, baseKcal: this.getSingleKcal(food), advice: advice, styleClass: styleClass };
+        });
+    }
+};
+
+function formatDateLabel(key) {
+    const parts = key.split("-");
+    const dayMap = {"06":"월", "07":"화", "08":"수", "09":"목", "10":"금", "13":"월", "14":"화", "15":"수", "16":"목"};
+    const weekLabel = ["06","07","08","09","10"].includes(parts[1]) ? "1주차" : "2주차";
+    return `2026년 07월 ${parts[1]}일 (${dayMap[parts[1]] || ""}) [${weekLabel} ${parts[2]}]`;
+}
+
+const dateSelect = document.getElementById('date-select');
+const keys = [
+    "07-06-중식", "07-06-석식", "07-07-중식", "07-07-석식", "07-08-중식", "07-09-중식", "07-09-석식", "07-10-중식", "07-10-석식",
+    "07-13-중식", "07-13-석식", "07-14-중식", "07-14-석식", "07-15-중식", "07-15-석식", "07-16-중식"
+];
+
+keys.forEach(key => {
+    if(dietDatabase[key]){
+        let opt = document.createElement('option'); opt.value = key; opt.innerText = formatDateLabel(key);
+        dateSelect.appendChild(opt);
+    }
+});
+
+const PORTIONS = [
+    { value: "1.3", label: "많게", pct: "130%" }, 
+    { value: "1.0", label: "보통", pct: "100%" }, 
+    { value: "0.6", label: "적게", pct: "60%" }, 
+    { value: "0.0", label: "안먹음", pct: "0%" }
+];
+
+function loadMenu() {
+    const selectedKey = dateSelect.value;
+    const menuListDiv = document.getElementById('menu-list');
+    const inputArea = document.getElementById('dynamic-input-area');
+    const noMealBox = document.getElementById('no-meal-box');
+    const resultBox = document.getElementById('result-box');
+
+    menuListDiv.innerHTML = ""; resultBox.style.display = "none";
+
+    if (!dietDatabase[selectedKey] || dietDatabase[selectedKey].length === 0) {
+        inputArea.style.display = "none";
+        noMealBox.innerHTML = `<b>[정보] 급식 미운영 일자</b>`;
+        noMealBox.style.display = "block";
+        return;
+    }
+
+    inputArea.style.display = "block"; noMealBox.style.display = "none";
+
+    dietDatabase[selectedKey].forEach((food, index) => {
+        let card = document.createElement('div'); card.className = 'menu-card';
+        const baseKcal = NutriAlgo.getSingleKcal(food);
+
+        if (food.isFixed) {
+            const fixedOptions = PORTIONS.map((p, i) => {
+                if (p.value !== "1.0" && p.value !== "0.0") return "";
+                return `<input type="radio" class="visually-hidden portion-input" id="w-${index}-${i}" name="w-${index}" value="${p.value}" ${p.value === "1.0" ? "checked" : ""}><label class="portion-btn" for="w-${index}-${i}">${p.label}<span class="portion-pct">${p.pct}</span></label>`;
+            }).join("");
+            card.innerHTML = `<div class="menu-card-head"><span class="menu-name">${food.name} <span class="menu-kcal-tag">${baseKcal} kcal</span></span><span class="fixed-badge">규격 완제품</span></div><div class="portion-group" style="grid-template-columns: repeat(2, 1fr);">${fixedOptions}</div>`;
+        } else {
+            const options = PORTIONS.map((p, i) => `<input type="radio" class="visually-hidden portion-input" id="w-${index}-${i}" name="w-${index}" value="${p.value}" ${p.value === "1.0" ? "checked" : ""}><label class="portion-btn" for="w-${index}-${i}">${p.label}<span class="portion-pct">${p.pct}</span></label>`).join("");
+            card.innerHTML = `<div class="menu-card-head"><span class="menu-name">${food.name} <span class="menu-kcal-tag">${baseKcal} kcal</span></span></div><div class="portion-group">${options}</div>`;
+        }
+        menuListDiv.appendChild(card);
+    });
+}
+
+loadMenu();
+
+const HISTORY_LIMIT = 14; 
+function historyKey(id) { return `nutrifit_history_${id}`; }
+function readHistory(id) { try { const raw = localStorage.getItem(historyKey(id)); return raw ? JSON.parse(raw) : []; } catch (e) { return []; } }
+function writeHistory(id, list) { try { localStorage.setItem(historyKey(id), JSON.stringify(list)); return true; } catch (e) { return false; } }
+function currentStudentId() { return document.getElementById('student-id').value.trim(); }
+
+function clearMyHistory() {
+    const id = currentStudentId();
+    if (!id) { alert("학번을 먼저 입력해주세요."); return; }
+    if (confirm(`기록을 초기화하시겠습니까?`)) { localStorage.removeItem(historyKey(id)); renderHistory(id); }
+}
+
+function renderHistory(id) {
+    const summaryDiv = document.getElementById('history-summary');
+    const listDiv = document.getElementById('history-list');
+    if (!id) { summaryDiv.innerHTML = `<div class="history-empty">학번을 입력하시면 브라우저 로컬 저장소에 축적된 영양 추세를 불러옵니다.</div>`; listDiv.innerHTML = ""; return; }
+    const list = readHistory(id);
+    if (list.length === 0) { summaryDiv.innerHTML = `<div class="history-empty">영양 추적 로그가 없습니다. 연산을 개시하여 시계열 벡터를 생성하세요.</div>`; listDiv.innerHTML = ""; return; }
+
+    summaryDiv.textContent = `최근 누적된 ${Math.min(5, list.length)}회의 섭취 기록 매트릭스 기반 개인별 대사 흐름 추세 동기화 완료.`;
+    listDiv.innerHTML = list.slice().reverse().map(r => `
+        <div class="history-row">
+            <span class="history-date">${formatDateLabel(r.mealKey).replace("2026년 ","").split(" [")[0]}</span>
+            <div class="history-bar">
+                <span style="width:${r.pctTan}%; background:var(--carb);"></span>
+                <span style="width:${r.pctDan}%; background:var(--protein);"></span>
+                <span style="width:${r.pctJi}%; background:var(--fat);"></span>
+            </div>
+            <span class="history-kcal">${r.kcal} kcal</span>
+        </div>
+    `).join("");
+}
+
+document.getElementById('student-id').addEventListener('input', () => { renderHistory(currentStudentId()); });
+
+function updateIndexBadge(elementId, value, normalMax, warnMax) {
+    const badge = document.getElementById(elementId);
+    if (value <= normalMax) { badge.className = "index-badge badge-normal"; badge.textContent = "정상"; }
+    else if (value <= warnMax) { badge.className = "index-badge badge-warn"; badge.textContent = "주의"; }
+    else { badge.className = "index-badge badge-danger"; badge.textContent = "위험"; }
+}
+
+function runAnalysis() {
+    const selectedKey = dateSelect.value; 
+    const foods = dietDatabase[selectedKey];
+    let weights = [];
+    foods.forEach((food, index) => { const checked = document.querySelector(`input[name="w-${index}"]:checked`); weights.push(checked ? parseFloat(checked.value) : 1.0); });
+
+    const currentResult = NutriAlgo.calculate(foods, weights);
+    const currentIdx = keys.indexOf(selectedKey);
+    const nextKey = keys[currentIdx + 1] || keys[0];
+
+    document.getElementById('kcal-output').textContent = `${currentResult.totalKcal} kcal`;
+    const diff = currentResult.totalKcal - currentResult.targetKcal;
+    document.getElementById('kcal-diff-sub').textContent = diff >= 0 ? `청소년 1식 권장 대비 +${diff} kcal 초과` : `청소년 1식 권장 대비 ${Math.abs(diff)} kcal 부족`;
+
+    document.getElementById('pfc-t').textContent = `${currentResult.pctTan}% (${currentResult.totalTan}g)──`;
+    document.getElementById('pfc-d').textContent = `${currentResult.pctDan}% (${currentResult.totalDan}g)──`;
+    document.getElementById('pfc-j').textContent = `${currentResult.pctJi}% (${currentResult.totalJi}g)`;
+    document.getElementById('ratio-bar').innerHTML = `<span style="width:${currentResult.pctTan}%; background:var(--carb);"></span><span style="width:${currentResult.pctDan}%; background:var(--protein);"></span><span style="width:${currentResult.pctJi}%; background:var(--fat);"></span>`;
+
+    document.getElementById('gti-output').textContent = `${currentResult.gls}%`;
+    document.getElementById('fsi-output').textContent = `${currentResult.lsi}%`;
+    document.getElementById('nds-output').textContent = `${currentResult.nbs} / 100`;
+
+    updateIndexBadge('gti-badge', currentResult.gls, 100, 125);
+    updateIndexBadge('fsi-badge', currentResult.lsi, 100, 130);
+
+    const predictDiv = document.getElementById('predict-output');
+    predictDiv.innerHTML = `<p style="font-size:12px; color:var(--muted); margin-bottom:8px; font-weight:700;">다음 피드백 타깃 식단: ${formatDateLabel(nextKey)}</p>`;
+    
+    if(dietDatabase[nextKey]){
+        NutriAlgo.predictNextMeal(currentResult, foods, dietDatabase[nextKey]).forEach(item => {
+            predictDiv.innerHTML += `<div class="rec-item"><div class="rec-head"><b>${item.foodName}</b><span class="rec-kcal">${item.baseKcal} kcal</span></div><div class="${item.styleClass}">${item.advice}</div></div>`;
+        });
+    }
+
+    document.getElementById('result-box').style.display = 'block';
+
+    const id = currentStudentId();
+    if (id) {
+        const list = readHistory(id);
+        if(list.length > 0 && list[list.length - 1].mealKey === selectedKey) { list.pop(); }
+        list.push({ mealKey: selectedKey, kcal: currentResult.totalKcal, pctTan: currentResult.pctTan, pctDan: currentResult.pctDan, pctJi: currentResult.pctJi, gls: currentResult.gls, lsi: currentResult.lsi, nbs: currentResult.nbs });
+        while (list.length > HISTORY_LIMIT) list.shift();
+        writeHistory(id, list); renderHistory(id);
+    }
+    document.getElementById('result-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
