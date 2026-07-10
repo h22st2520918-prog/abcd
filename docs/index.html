@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nutri-Fit Edge v7.6 — 급식 배식량 정량화 및 영양소 완전 매칭 엔진</title>
+<title>Nutri-Fit Edge v7.7 — 남고생 기준 적용 및 가중치 피드백 버그 완전 완치판</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght=700;900&family=Noto+Sans+KR:wght=400;500;700&family=Space+Mono:wght=400;700&display=swap" rel="stylesheet">
@@ -77,8 +77,8 @@
 <div class="page">
   <header class="academic-header">
     <div class="meta">Clinical Metabolism & Homeostasis Matrix</div>
-    <h1>Nutri-Fit Edge v7.6</h1>
-    <p>학교 급식 1인 배식량 표준 규격 및 영양소 등식 관계 완전 동기화 빌드</p>
+    <h1>Nutri-Fit Edge v7.7</h1>
+    <p>남고생 영양섭취기준(1식 900kcal) 및 가중치 체인 제어 버그 완치 빌드</p>
   </header>
 
   <main>
@@ -125,12 +125,12 @@
         <div class="metric-card">
           <span class="metric-label">탄수화물 충족도 ($GLS$) <span id="gti-badge" class="index-badge"></span></span>
           <div class="metric-val" id="gti-output"></div>
-          <div class="metric-sub">1식 권장 탄수화물 대비 비중</div>
+          <div class="metric-sub">남고생 1식 권장 탄수화물 대비 비중</div>
         </div>
         <div class="metric-card">
           <span class="metric-label">지방 대사 포화도 ($LSI$) <span id="fsi-badge" class="index-badge"></span></span>
           <div class="metric-val" id="fsi-output"></div>
-          <div class="metric-sub">1식 권장 지방 대비 비중</div>
+          <div class="metric-sub">남고생 1식 권장 지방 대비 비중</div>
         </div>
         <div class="metric-card">
           <span class="metric-label">영양 밀도 스코어 ($NDS$)</span>
@@ -154,133 +154,132 @@
 </div>
 
 <script>
-// 교육청 급식 표준 배식 가이드라인 및 4-4-9 칼로리 등식 법칙을 엄격하게 적용한 정밀 행렬 DB
 const dietDatabase = {
     "07-06-중식": [
-        {name:"보리기장밥", tan:68.5, dan:5.8, ji:0.7, type:"complex"}, // 303.5 kcal
-        {name:"배추된장국-자율", tan:5.2, dan:1.8, ji:0.4, type:"complex"}, // 31.6 kcal
-        {name:"탄두리치킨(급식용 1토막)", tan:4.5, dan:18.2, ji:9.4, type:"protein"}, // 175.4 kcal
-        {name:"비빔채소라면(소량 찬거리)", tan:38.4, dan:5.2, ji:6.8, type:"simple"}, // 235.6 kcal
-        {name:"수제치킨무 & 미나리무침 & 배추김치", tan:6.2, dan:1.1, ji:0.1, type:"complex"}, // 30.1 kcal
-        {name:"수박화채(급식 규격)", tan:18.4, dan:0.5, ji:0.1, type:"simple"} // 76.5 kcal
+        {name:"보리기장밥", tan:68.5, dan:5.8, ji:0.7, type:"complex"},
+        {name:"배추된장국-자율", tan:5.2, dan:1.8, ji:0.4, type:"complex"},
+        {name:"탄두리치킨(급식용 1토막)", tan:4.5, dan:18.2, ji:9.4, type:"protein"},
+        {name:"비빔채소라면(소량 찬거리)", tan:38.4, dan:5.2, ji:6.8, type:"simple"},
+        {name:"수제치킨무 & 미나리무침 & 배추김치", tan:6.2, dan:1.1, ji:0.1, type:"complex"},
+        {name:"수박화채(급식 규격)", tan:18.4, dan:0.5, ji:0.1, type:"simple"}
     ],
     "07-06-석식": [
-        {name:"목살필라프(급식정량)", tan:68.2, dan:16.4, ji:10.5, type:"complex"}, // 432.9 kcal
-        {name:"무맑은국 & 숙주나물무침", tan:4.5, dan:1.4, ji:0.2, type:"complex"}, // 25.4 kcal
-        {name:"깐쇼새우(급식 4미)", tan:22.4, dan:10.2, ji:7.5, type:"simple"}, // 197.9 kcal
-        {name:"양배추샐러드(참깨소스)", tan:8.2, dan:1.2, ji:6.4, type:"simple"}, // 95.2 kcal
-        {name:"마시는요거트(사과) & 배추김치", tan:18.5, dan:2.4, ji:1.5, type:"simple"} // 97.1 kcal
+        {name:"목살필라프(급식정량)", tan:68.2, dan:16.4, ji:10.5, type:"complex"},
+        {name:"무맑은국 & 숙주나물무침", tan:4.5, dan:1.4, ji:0.2, type:"complex"},
+        {name:"깐쇼새우(급식 4미)", tan:22.4, dan:10.2, ji:7.5, type:"simple"},
+        {name:"양배추샐러드(참깨소스)", tan:8.2, dan:1.2, ji:6.4, type:"simple"},
+        {name:"마시는요거트(사과) & 배추김치", tan:18.5, dan:2.4, ji:1.5, type:"simple"}
     ],
     "07-07-중식": [
-        {name:"텐동(급식용 미니튀김덮밥)", tan:78.4, dan:15.5, ji:14.2, type:"complex"}, // 503.4 kcal
-        {name:"팽이미소된장국", tan:3.8, dan:1.5, ji:0.5, type:"complex"}, // 25.7 kcal
-        {name:"두부조림 & 오이콘샐러드", tan:10.2, dan:4.8, ji:4.5, type:"complex"}, // 100.5 kcal
-        {name:"유자단무지 & 배추김치", tan:4.8, dan:0.5, ji:0.1, type:"simple"}, // 22.1 kcal
-        {name:"망고사고", tan:16.4, dan:0.4, ji:0.8, type:"simple"}, // 74.4 kcal
-        {name:"초코칩트위스트(생지)", tan:26.5, dan:3.5, ji:9.8, isFixed:true, type:"simple"} // 208.2 kcal
+        {name:"텐동(급식용 미니튀김덮밥)", tan:78.4, dan:15.5, ji:14.2, type:"complex"},
+        {name:"팽이미소된장국", tan:3.8, dan:1.5, ji:0.5, type:"complex"},
+        {name:"두부조림 & 오이콘샐러드", tan:10.2, dan:4.8, ji:4.5, type:"complex"},
+        {name:"유자단무지 & 배추김치", tan:4.8, dan:0.5, ji:0.1, type:"simple"},
+        {name:"망고사고", tan:16.4, dan:0.4, ji:0.8, type:"simple"},
+        {name:"초코칩트위스트(생지)", tan:26.5, dan:3.5, ji:9.8, isFixed:true, type:"simple"}
     ],
     "07-07-석식": [
-        {name:"찹쌀현미밥", tan:70.5, dan:6.1, ji:0.8, type:"complex"}, // 313.6 kcal
-        {name:"부대찌개(급식 규격 소량)", tan:10.2, dan:9.5, ji:9.8, type:"complex"}, // 167.0 kcal
-        {name:"언양식불고기(급식찬)", tan:12.4, dan:16.8, ji:11.2, type:"protein"}, // 217.6 kcal
-        {name:"파채무침 & 파프리카버섯볶음", tan:6.2, dan:1.5, ji:1.8, type:"complex"}, // 47.0 kcal
-        {name:"식혜(친환경) & 배추김치", tan:24.5, dan:0.4, ji:0.1, type:"simple"} // 100.5 kcal
+        {name:"찹쌀현미밥", tan:70.5, dan:6.1, ji:0.8, type:"complex"},
+        {name:"부대찌개(급식 규격 소량)", tan:10.2, dan:9.5, ji:9.8, type:"complex"},
+        {name:"언양식불고기(급식찬)", tan:12.4, dan:16.8, ji:11.2, type:"protein"},
+        {name:"파채무침 & 파프리카버섯볶음", tan:6.2, dan:1.5, ji:1.8, type:"complex"},
+        {name:"식혜(친환경) & 배추김치", tan:24.5, dan:0.4, ji:0.1, type:"simple"}
     ],
     "07-08-중식": [
-        {name:"하이라이스", tan:82.4, dan:11.2, ji:8.5, type:"complex"}, // 450.9 kcal
-        {name:"샐러드고로케", tan:22.5, dan:3.2, ji:9.4, type:"simple"}, // 187.4 kcal
-        {name:"들기름도토리묵무침-자율", tan:8.4, dan:1.2, ji:3.2, type:"complex"}, // 67.2 kcal
-        {name:"톳가락국수+초고추장(자율)", tan:24.2, dan:2.8, ji:0.8, type:"complex"}, // 115.2 kcal
-        {name:"배추김치 & 사과주스", tan:22.4, dan:0.3, ji:0.1, type:"simple"} // 91.7 kcal
+        {name:"하이라이스", tan:82.4, dan:11.2, ji:8.5, type:"complex"},
+        {name:"샐러드고로케", tan:22.5, dan:3.2, ji:9.4, type:"simple"},
+        {name:"들기름도토리묵무침-자율", tan:8.4, dan:1.2, ji:3.2, type:"complex"},
+        {name:"톳가락국수+초고추장(자율)", tan:24.2, dan:2.8, ji:0.8, type:"complex"},
+        {name:"배추김치 & 사과주스", tan:22.4, dan:0.3, ji:0.1, type:"simple"}
     ],
     "07-09-중식": [
-        {name:"현미밥(통곡물)", tan:66.4, dan:6.2, ji:0.9, type:"complex"}, // 298.5 kcal
-        {name:"미니물냉면", tan:34.5, dan:3.8, ji:0.6, type:"simple"}, // 158.6 kcal
-        {name:"맥적(돼지고기된장구이)", tan:6.8, dan:20.5, ji:12.4, type:"protein"}, // 220.8 kcal
-        {name:"상추겉절이 & 멸치볶음-자율", tan:4.2, dan:3.5, ji:2.1, type:"complex"}, // 49.7 kcal
-        {name:"배추김치 & 파인애플(생과)", tan:12.4, dan:0.5, ji:0.1, type:"simple"} // 52.5 kcal
+        {name:"현미밥(통곡물)", tan:66.4, dan:6.2, ji:0.9, type:"complex"},
+        {name:"미니물냉면", tan:34.5, dan:3.8, ji:0.6, type:"simple"},
+        {name:"맥적(돼지고기된장구이)", tan:6.8, dan:20.5, ji:12.4, type:"protein"},
+        {name:"상추겉절이 & 멸치볶음-자율", tan:4.2, dan:3.5, ji:2.1, type:"complex"},
+        {name:"배추김치 & 파인애플(생과)", tan:12.4, dan:0.5, ji:0.1, type:"simple"}
     ],
     "07-09-석식": [
-        // 제공값 총합 1191.1 Kcal 완벽 수학적 홀딩 프로파일
-        {name:"보리쌀밥", tan:68.5, dan:6.3, ji:1.0, type:"complex"}, // 308.2 kcal
-        {name:"유부배추맑은국", tan:5.2, dan:2.5, ji:1.8, type:"complex"}, // 47.0 kcal
-        {name:"찜닭(안동식)", tan:24.0, dan:36.5, ji:14.2, type:"protein"}, // 369.8 kcal
-        {name:"무말랭이무침", tan:8.4, dan:1.1, ji:0.2, type:"complex"}, // 39.8 kcal
-        {name:"깻잎양념무침", tan:6.2, dan:1.4, ji:0.3, type:"complex"}, // 33.1 kcal
-        {name:"고르곤졸라슈크러스트피자", tan:74.5, dan:24.2, ji:26.5, isFixed:true, type:"simple"}, // 633.3 kcal
-        {name:"배추김치", tan:3.2, dan:1.0, ji:0.2, type:"complex"} // 18.6 kcal
+        {name:"보리쌀밥", tan:68.5, dan:6.3, ji:1.0, type:"complex"},
+        {name:"유부배추맑은국", tan:5.2, dan:2.5, ji:1.8, type:"complex"},
+        {name:"찜닭(안동식)", tan:24.0, dan:36.5, ji:14.2, type:"protein"},
+        {name:"무말랭이무침", tan:8.4, dan:1.1, ji:0.2, type:"complex"},
+        {name:"깻잎양념무침", tan:6.2, dan:1.4, ji:0.3, type:"complex"},
+        {name:"고르곤졸라슈크러스트피자", tan:74.5, dan:24.2, ji:26.5, isFixed:true, type:"simple"},
+        {name:"배추김치", tan:3.2, dan:1.0, ji:0.2, type:"complex"}
     ],
     "07-10-중식": [
-        {name:"무콩나물밥", tan:69.5, dan:6.8, ji:1.1, type:"complex"}, // 315.1 kcal
-        {name:"쇠고기순두부찌개", tan:4.2, dan:11.2, ji:7.8, type:"complex"}, // 131.8 kcal
-        {name:"새송이버섯보말볶음-자율", tan:3.8, dan:2.1, ji:1.8, type:"complex"}, // 39.8 kcal
-        {name:"열무된장무침(자율) & 배추김치", tan:4.8, dan:1.2, ji:0.2, type:"complex"}, // 25.8 kcal
-        {name:"크로크무슈", tan:28.4, dan:10.5, ji:12.4, isFixed:true, type:"simple"}, // 267.2 kcal
-        {name:"우유&제티/쥬스 선택", tan:26.2, dan:6.4, ji:4.8, type:"simple"} // 173.6 kcal
+        {name:"무콩나물밥", tan:69.5, dan:6.8, ji:1.1, type:"complex"},
+        {name:"쇠고기순두부찌개", tan:4.2, dan:11.2, ji:7.8, type:"complex"},
+        {name:"새송이버섯보말볶음-자율", tan:3.8, dan:2.1, ji:1.8, type:"complex"},
+        {name:"열무된장무침(자율) & 배추김치", tan:4.8, dan:1.2, ji:0.2, type:"complex"},
+        {name:"크로크무슈", tan:28.4, dan:10.5, ji:12.4, isFixed:true, type:"simple"},
+        {name:"우유&제티/쥬스 선택", tan:26.2, dan:6.4, ji:4.8, type:"simple"}
     ],
     "07-10-석식": [
-        {name:"참치마요덮밥(급식소량)", tan:70.5, dan:14.8, ji:15.4, type:"complex"}, // 479.8 kcal
-        {name:"감자된장국", tan:7.5, dan:1.9, ji:0.4, type:"complex"}, // 41.2 kcal
-        {name:"볼어묵볶음 & 꼬들단무지무침", tan:11.4, dan:3.8, ji:2.6, type:"complex"}, // 84.2 kcal
-        {name:"포기김치 & 옥수수크림파이", tan:28.4, dan:2.8, ji:9.5, isFixed:true, type:"simple"} // 210.3 kcal
+        {name:"참치마요덮밥(급식소량)", tan:70.5, dan:14.8, ji:15.4, type:"complex"},
+        {name:"감자된장국", tan:7.5, dan:1.9, ji:0.4, type:"complex"},
+        {name:"볼어묵볶음 & 꼬들단무지무침", tan:11.4, dan:3.8, ji:2.6, type:"complex"},
+        {name:"포기김치 & 옥수수크림파이", tan:28.4, dan:2.8, ji:9.5, isFixed:true, type:"simple"}
     ],
     "07-13-중식": [
-        {name:"보리기장밥", tan:66.2, dan:5.8, ji:0.7, type:"complex"}, // 294.3 kcal
-        {name:"마라탕(급식용 국그릇 1회분)", tan:22.4, dan:14.2, ji:15.4, type:"simple"}, // 285.0 kcal
-        {name:"들기름막국수(미니 소량)", tan:32.4, dan:4.2, ji:5.8, type:"complex"}, // 198.6 kcal
-        {name:"감자채볶음 & 해파리냉채-자율", tan:11.2, dan:1.4, ji:1.8, type:"complex"}, // 66.6 kcal
-        {name:"꽁치구이(자율) & 배추김치", tan:1.2, dan:14.5, ji:8.4, type:"protein"}, // 138.4 kcal
-        {name:"요구르트", tan:10.5, dan:0.1, ji:0.0, type:"simple"} // 42.4 kcal
+        {name:"보리기장밥", tan:66.2, dan:5.8, ji:0.7, type:"complex"},
+        {name:"마라탕(급식용 국그릇 1회분)", tan:22.4, dan:14.2, ji:15.4, type:"simple"},
+        {name:"들기름막국수(미니 소량)", tan:32.4, dan:4.2, ji:5.8, type:"complex"},
+        {name:"감자채볶음 & 해파리냉채-자율", tan:11.2, dan:1.4, ji:1.8, type:"complex"},
+        {name:"꽁치구이(자율) & 배추김치", tan:1.2, dan:14.5, ji:8.4, type:"protein"},
+        {name:"요구르트", tan:10.5, dan:0.1, ji:0.0, type:"simple"}
     ],
     "07-13-석식": [
-        {name:"차수수밥", tan:68.2, dan:5.9, ji:0.8, type:"complex"}, // 303.6 kcal
-        {name:"북어포무국", tan:2.8, dan:5.2, ji:0.6, type:"complex"}, // 37.4 kcal
-        {name:"매운돼지갈비찜(급식 3토막)", tan:11.4, dan:22.5, ji:16.8, type:"protein"}, // 286.8 kcal
-        {name:"브로콜리-초고추장 & 애느타리깨소스무침", tan:6.4, dan:2.1, ji:2.4, type:"complex"}, // 55.6 kcal
-        {name:"콘치즈불고기퀘사디아 & 배추김치", tan:26.4, dan:10.2, ji:11.5, type:"simple"} // 249.9 kcal
+        {name:"차수수밥", tan:68.2, dan:5.9, ji:0.8, type:"complex"},
+        {name:"북어포무국", tan:2.8, dan:5.2, ji:0.6, type:"complex"},
+        {name:"매운돼지갈비찜(급식 3토막)", tan:11.4, dan:22.5, ji:16.8, type:"protein"},
+        {name:"브로콜리-초고추장 & 애느타리깨소스무침", tan:6.4, dan:2.1, ji:2.4, type:"complex"},
+        {name:"콘치즈불고기퀘사디아 & 배추김치", tan:26.4, dan:10.2, ji:11.5, type:"simple"}
     ],
     "07-14-중식": [
-        {name:"비빔밥(나물 및 고추장)", tan:74.5, dan:8.8, ji:6.2, type:"complex"}, // 389.0 kcal
-        {name:"호박잎국(자율) & 고사리볶음-자율", tan:5.8, dan:1.8, ji:1.5, type:"complex"}, // 43.9 kcal
-        {name:"달걀후라이 & 배추김치", tan:1.1, dan:6.5, ji:5.8, type:"protein"}, // 82.6 kcal
-        {name:"하우스감귤", tan:9.5, dan:0.5, ji:0.1, type:"simple"}, // 40.9 kcal
-        {name:"구슬아이스크림", tan:18.4, dan:2.1, ji:3.8, isFixed:true, type:"simple"} // 116.2 kcal
+        {name:"비빔밥(나물 및 고추장)", tan:74.5, dan:8.8, ji:6.2, type:"complex"},
+        {name:"호박잎국(자율) & 고사리볶음-자율", tan:5.8, dan:1.8, ji:1.5, type:"complex"},
+        {name:"달걀후라이 & 배추김치", tan:1.1, dan:6.5, ji:5.8, type:"protein"},
+        {name:"하우스감귤", tan:9.5, dan:0.5, ji:0.1, type:"simple"},
+        {name:"구슬아이스크림", tan:18.4, dan:2.1, ji:3.8, isFixed:true, type:"simple"}
     ],
     "07-14-석식": [
-        {name:"발아현미밥", tan:68.4, dan:6.1, ji:0.9, type:"complex"}, // 306.1 kcal
-        {name:"김치콩나물국", tan:4.2, dan:2.1, ji:0.6, type:"complex"}, // 30.6 kcal
-        {name:"고추마요치킨(급식 4조각)", tan:18.5, dan:18.2, ji:19.4, type:"protein"}, // 321.4 kcal
-        {name:"무오이피클 & 양배추샐러드", tan:9.2, dan:0.9, ji:4.2, type:"simple"}, // 78.2 kcal
-        {name:"애플망고주스 & 배추김치", tan:22.4, dan:0.3, ji:0.1, type:"simple"} // 91.7 kcal
+        {name:"발아현미밥", tan:68.4, dan:6.1, ji:0.9, type:"complex"},
+        {name:"김치콩나물국", tan:4.2, dan:2.1, ji:0.6, type:"complex"},
+        {name:"고추마요치킨(급식 4조각)", tan:18.5, dan:18.2, ji:19.4, type:"protein"},
+        {name:"무오이피클 & 양배추샐러드", tan:9.2, dan:0.9, ji:4.2, type:"simple"},
+        {name:"애플망고주스 & 배추김치", tan:22.4, dan:0.3, ji:0.1, type:"simple"}
     ],
     "07-15-중식": [
-        {name:"닭다리백숙(소량 반계 미만)", tan:22.4, dan:28.5, ji:11.2, type:"protein"}, // 304.4 kcal
-        {name:"페스츄리치아바타샌드위치", tan:28.4, dan:9.5, ji:10.2, isFixed:true, type:"simple"}, // 243.4 kcal
-        {name:"오이지무침(자율) & 숙주무채장아찌무침", tan:5.4, dan:1.1, ji:0.1, type:"complex"}, // 26.9 kcal
-        {name:"수제딸기쉐이크(국그릇) & 배추김치", tan:26.5, dan:3.8, ji:3.8, type:"simple"} // 155.4 kcal
+        {name:"닭다리백숙(소량 반계 미만)", tan:22.4, dan:28.5, ji:11.2, type:"protein"},
+        {name:"페스츄리치아바타샌드위치", tan:28.4, dan:9.5, ji:10.2, isFixed:true, type:"simple"},
+        {name:"오이지무침(자율) & 숙주무채장아찌무침", tan:5.4, dan:1.1, ji:0.1, type:"complex"},
+        {name:"수제딸기쉐이크(국그릇) & 배추김치", tan:26.5, dan:3.8, ji:3.8, type:"simple"}
     ],
     "07-15-석식": [
-        {name:"검정쌀밥", tan:69.2, dan:6.1, ji:0.8, type:"complex"}, // 308.4 kcal
-        {name:"된장찌개", tan:7.5, dan:4.8, ji:3.2, type:"complex"}, // 78.0 kcal
-        {name:"돼지고기수육(급식 정량 80g)", tan:1.5, dan:20.4, ji:22.8, type:"protein"}, // 292.8 kcal
-        {name:"상추깻잎/쌈장 & 양파겨자무침", tan:7.8, dan:1.8, ji:1.8, type:"complex"}, // 54.6 kcal
-        {name:"초코아이스슬러쉬 & 배추김치", tan:36.4, dan:1.8, ji:3.2, type:"simple"} // 181.6 kcal
+        {name:"검정쌀밥", tan:69.2, dan:6.1, ji:0.8, type:"complex"},
+        {name:"된장찌개", tan:7.5, dan:4.8, ji:3.2, type:"complex"},
+        {name:"돼지고기수육(급식 정량 80g)", tan:1.5, dan:20.4, ji:22.8, type:"protein"},
+        {name:"상추깻잎/쌈장 & 양파겨자무침", tan:7.8, dan:1.8, ji:1.8, type:"complex"},
+        {name:"초코아이이스슬러쉬 & 배추김치", tan:36.4, dan:1.8, ji:3.2, type:"simple"}
     ],
     "07-16-중식": [
-        {name:"유니짜장면(급식용 규격)", tan:88.4, dan:16.5, ji:18.2, type:"simple"}, // 583.4 kcal
-        {name:"다꼬야끼(오븐 3알)", tan:18.2, dan:3.8, ji:5.2, type:"simple"}, // 134.8 kcal
-        {name:"단무지 & 배추김치", tan:6.2, dan:0.6, ji:0.1, type:"simple"} // 28.1 kcal
+        {name:"유니짜장면(급식용 규격)", tan:88.4, dan:16.5, ji:18.2, type:"simple"},
+        {name:"다꼬야끼(오븐 3알)", tan:18.2, dan:3.8, ji:5.2, type:"simple"},
+        {name:"단무지 & 배추김치", tan:6.2, dan:0.6, ji:0.1, type:"simple"}
     ]
 };
 
 const NutriAlgo = {
     getSingleKcal: function(food) {
-        return Math.round((food.tan * 4) + (food.dan * 4) + (food.ji * 9));
+        return (food.tan * 4) + (food.dan * 4) + (food.ji * 9);
     },
 
     calculate: function(foods, weights) {
         let totalTan = 0, totalDan = 0, totalJi = 0;
-        const RDA = { kcal: 850, tan: 127.5, dan: 31.8, ji: 23.6 };
+        // 대한민국 남고생(15~18세) 1식 권장 가이드라인 대사 매트릭스
+        const RDA = { kcal: 900, tan: 135.0, dan: 33.8, ji: 25.0 };
         
         foods.forEach((food, index) => {
             const w = weights[index];
@@ -307,12 +306,13 @@ const NutriAlgo = {
 
     predictNextMeal: function(res, currentFoods, nextFoods) {
         if (!nextFoods || nextFoods.length === 0) return [];
-        const isOverfed = res.totalKcal > (res.targetKcal * 1.15);
+        // 버그 픽스: 가중치가 반영된 실시간 최종 결과(res.totalKcal)를 기준으로 과식 여부를 판정
+        const isOverfed = res.totalKcal > (res.targetKcal * 1.1);
 
         let lackNutrients = [];
         if (res.gls < 85) lackNutrients.push("탄수화물(GLS 부족)");
         if (res.pctDan < 15) lackNutrients.push("단백질(PFC 비중 부족)");
-        if (res.lsi < 70) lackNutrients.push("지방(대사 필수지방 부족)");
+        if (res.lsi < 75) lackNutrients.push("지방(대사 필수지방 부족)");
         const lackText = lackNutrients.length > 0 ? `[결핍 성분 확인됨: ${lackNutrients.join(", ")}]` : "[결핍 영양소 없음]";
 
         return nextFoods.map(food => {
@@ -320,7 +320,7 @@ const NutriAlgo = {
             let styleClass = "";
 
             if (isOverfed) {
-                advice = `⚠️ 직전 식사 대사량 과다 누적 상태입니다. ${lackText} 항상성 유지를 위해 이 메뉴는 영양군에 관계없이 무조건 [적게] 조절하십시오.`;
+                advice = `⚠️ 직전 식사 대사량 과다 누적 상태입니다. 항상성 유지를 위해 다음 끼니의 이 메뉴는 무조건 [적게] 조절하십시오.`;
                 styleClass = "rec-advice-danger";
             } else {
                 if (res.gls < 85 && food.type === "complex") {
@@ -333,7 +333,7 @@ const NutriAlgo = {
                     advice = `ℹ️ 직전 식사 대사 결핍 분석 결과: ${lackText}. 해당 메뉴는 일반 정량 배식 후 균형을 유지하세요.`;
                 }
             }
-            return { foodName: food.name, baseKcal: this.getSingleKcal(food), advice: advice, styleClass: styleClass };
+            return { foodName: food.name, baseKcal: Math.round(this.getSingleKcal(food)), advice: advice, styleClass: styleClass };
         });
     }
 };
@@ -385,7 +385,7 @@ function loadMenu() {
 
     dietDatabase[selectedKey].forEach((food, index) => {
         let card = document.createElement('div'); card.className = 'menu-card';
-        const baseKcal = NutriAlgo.getSingleKcal(food);
+        const baseKcal = Math.round(NutriAlgo.getSingleKcal(food));
 
         if (food.isFixed) {
             const fixedOptions = PORTIONS.map((p, i) => {
@@ -457,7 +457,7 @@ function runAnalysis() {
 
     document.getElementById('kcal-output').textContent = `${currentResult.totalKcal} kcal`;
     const diff = currentResult.totalKcal - currentResult.targetKcal;
-    document.getElementById('kcal-diff-sub').textContent = diff >= 0 ? `청소년 1식 권장 대비 +${diff} kcal 초과` : `청소년 1식 권장 대비 ${Math.abs(diff)} kcal 부족`;
+    document.getElementById('kcal-diff-sub').textContent = diff >= 0 ? `남고생 1식 권장 대비 +${diff} kcal 초과` : `남고생 1식 권장 대비 ${Math.abs(diff)} kcal 부족`;
 
     document.getElementById('pfc-t').textContent = `${currentResult.pctTan}% (${currentResult.totalTan}g)──`;
     document.getElementById('pfc-d').textContent = `${currentResult.pctDan}% (${currentResult.totalDan}g)──`;
