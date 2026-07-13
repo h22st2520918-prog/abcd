@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nutri-Fit Edge v7.7 — 남고생 기준 적용 및 가중치 피드백 버그 완전 완치판</title>
+<title>Nutri-Fit Edge v7.8 — 3대 고도화 패치 통합본</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght=700;900&family=Noto+Sans+KR:wght=400;500;700&family=Space+Mono:wght=400;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg: #F4F6F2; --surface: #FFFFFF; --border: #CFD7CC; --ink: #111B15; --muted: #4A574E;
-    --carb: #B28D24; --protein: #1F5F38; --fat: #B53A2E; --radius-lg: 16px; --radius-md: 10px;
+    --carb: #B28D24; --protein: #1F5F38; --fat: #B53A2E; --sodium: #4A6FA5; --radius-lg: 16px; --radius-md: 10px;
   }
   *{ box-sizing:border-box; }
   body{
@@ -31,10 +31,16 @@
   .id-row input{ flex:1; }
   .ghost-btn{ padding:12px 14px; border-radius: var(--radius-md); border:1px solid var(--border); background:#fff; color:var(--muted); font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap; }
   .ghost-btn:hover{ border-color:var(--ink); color:var(--ink); }
-  .menu-card { background: #FAFBF9; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 10px; }
+  
+  /* 🌟 [업그레이드 3] 사용자 친화적 UI/UX: 선호/주의 식품 색상 다변화 스타일 클래스 */
+  .menu-card { background: #FAFBF9; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 10px; transition: all 0.2s ease; }
+  .menu-card.bg-highlight-delicious { background: #F2F9F4; border-left: 5px solid var(--protein); border-color: #C3E6CB; } /* 선호 메뉴 */
+  .menu-card.bg-highlight-danger { background: #FFF5F5; border-left: 5px solid var(--fat); border-color: #F5C6CB; } /* 고나트륨 주의 메뉴 */
+  
   .menu-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .menu-name { font-weight: 700; font-size: 14px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
   .menu-kcal-tag { font-family: 'Space Mono', monospace; font-size: 11px; color: #b76e00; background: #FFF9EB; border: 1px solid #EEDBB2; padding: 1px 5px; border-radius: 4px; font-weight: 700; display: inline-block; }
+  .menu-na-tag { font-family: 'Space Mono', monospace; font-size: 11px; color: #2B5797; background: #F4F7FC; border: 1px solid #C4D2E7; padding: 1px 5px; border-radius: 4px; font-weight: 700; display: inline-block; margin-left: 4px; }
   .fixed-badge { font-size: 11px; font-weight: 500; color: #A36A00; background: #FFF9EB; padding: 2px 6px; border-radius: 4px; border: 1px solid #EEDBB2; }
   .portion-group { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
   .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
@@ -42,11 +48,15 @@
   .portion-pct { font-family: 'Space Mono', monospace; font-size: 10px; opacity: 0.7; }
   .portion-input:checked + .portion-btn { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 700; }
   button.calc-btn { width: 100%; padding: 16px; margin-top: 24px; background: var(--ink); color: #fff; border: none; border-radius: var(--radius-md); font-size: 15px; font-weight: 700; cursor: pointer; font-family:inherit; }
+  
+  /* 🌟 [업그레이드 1] NaN 방어 예외 처리 메시지용 CSS */
+  .error-lock-box { display: none; background: #FFF2CC; border: 1px solid #EEDBB2; color: #7F6000; border-radius: var(--radius-md); padding: 16px; margin-top: 20px; font-size: 13.5px; font-weight: 500; text-align: center; }
+  
   .result-panel { margin-top: 36px; border-top: 1px dashed var(--border); padding-top: 30px; }
   .pfc-box { background: #1F2E25; color: #fff; border-radius: var(--radius-md); padding: 18px; margin-bottom: 16px; }
   .pfc-grid { display: flex; justify-content: space-between; font-family: 'Space Mono', monospace; font-size: 13px; margin-bottom: 12px; }
   .ratio-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: #33463A; }
-  .ratio-bar span { height: 100%; }
+  .ratio-bar span { height: 100%; transition: width 0.3s ease; }
   .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
   .metric-card { background: #FAFBF9; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
   .metric-label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; }
@@ -77,8 +87,8 @@
 <div class="page">
   <header class="academic-header">
     <div class="meta">Clinical Metabolism & Homeostasis Matrix</div>
-    <h1>Nutri-Fit Edge v7.7</h1>
-    <p>남고생 영양섭취기준(1식 900kcal) 및 가중치 체인 제어 버그 완치 빌드</p>
+    <h1>Nutri-Fit Edge v7.8</h1>
+    <p>남고생 영양섭취기준(1식 900kcal) 및 3대 고도화(NaN방어·나트륨·UI변화) 완료판</p>
   </header>
 
   <main>
@@ -101,6 +111,8 @@
       <button type="button" class="calc-btn" onclick="runAnalysis()">다차원 영양 대사 연산 및 시뮬레이션 개시 ➔</button>
     </section>
 
+    <!-- 🌟 [업그레이드 1] NaN 버그 방어용 실시간 인터락 안내 박스 -->
+    <div id="error-lock-box" class="error-lock-box"></div>
     <div id="no-meal-box" class="no-meal-msg" style="display:none;"></div>
 
     <section id="result-box" class="result-panel" style="display:none;">
@@ -122,6 +134,14 @@
           <div class="metric-val" id="kcal-output"></div>
           <div class="metric-sub" id="kcal-diff-sub"></div>
         </div>
+        
+        <!-- 🌟 [업그레이드 2] 나트륨 미량 영양소 전용 대사 지표 카드 배치 -->
+        <div class="metric-card">
+          <span class="metric-label">나트륨 섭취량 ($Na$) <span id="na-badge" class="index-badge"></span></span>
+          <div class="metric-val" id="na-output"></div>
+          <div class="metric-sub" id="na-diff-sub"></div>
+        </div>
+
         <div class="metric-card">
           <span class="metric-label">탄수화물 충족도 ($GLS$) <span id="gti-badge" class="index-badge"></span></span>
           <div class="metric-val" id="gti-output"></div>
@@ -132,7 +152,7 @@
           <div class="metric-val" id="fsi-output"></div>
           <div class="metric-sub">남고생 1식 권장 지방 대비 비중</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" style="grid-column: span 2;">
           <span class="metric-label">영양 밀도 스코어 ($NDS$)</span>
           <div class="metric-val" id="nds-output"></div>
           <div class="metric-sub">보건 지표 가이드라인 부합도</div>
@@ -154,120 +174,122 @@
 </div>
 
 <script>
+// 🌟 [업그레이드 2] 분석 범위의 다변화: 개별 음식 데이터셋에 나트륨(na, 단위: mg) 속성 전면 바인딩
+// 학생 피드백 반영: 'isDelicious' 및 고나트륨 속성을 주입하여 UI 하이라이트 트리거 확보
 const dietDatabase = {
     "07-06-중식": [
-        {name:"보리기장밥", tan:68.5, dan:5.8, ji:0.7, type:"complex"},
-        {name:"배추된장국-자율", tan:5.2, dan:1.8, ji:0.4, type:"complex"},
-        {name:"탄두리치킨(급식용 1토막)", tan:4.5, dan:18.2, ji:9.4, type:"protein"},
-        {name:"비빔채소라면(소량 찬거리)", tan:38.4, dan:5.2, ji:6.8, type:"simple"},
-        {name:"수제치킨무 & 미나리무침 & 배추김치", tan:6.2, dan:1.1, ji:0.1, type:"complex"},
-        {name:"수박화채(급식 규격)", tan:18.4, dan:0.5, ji:0.1, type:"simple"}
+        {name:"보리기장밥", tan:68.5, dan:5.8, ji:0.7, na:5, type:"complex"},
+        {name:"배추된장국-자율", tan:5.2, dan:1.8, ji:0.4, na:520, type:"complex"},
+        {name:"탄두리치킨(급식용 1토막)", tan:4.5, dan:18.2, ji:9.4, na:410, isDelicious:true, type:"protein"},
+        {name:"비빔채소라면(소량 찬거리)", tan:38.4, dan:5.2, ji:6.8, na:680, isDelicious:true, type:"simple"},
+        {name:"수제치킨무 & 미나리무침 & 배추김치", tan:6.2, dan:1.1, ji:0.1, na:310, type:"complex"},
+        {name:"수박화채(급식 규격)", tan:18.4, dan:0.5, ji:0.1, na:15, type:"simple"}
     ],
     "07-06-석식": [
-        {name:"목살필라프(급식정량)", tan:68.2, dan:16.4, ji:10.5, type:"complex"},
-        {name:"무맑은국 & 숙주나물무침", tan:4.5, dan:1.4, ji:0.2, type:"complex"},
-        {name:"깐쇼새우(급식 4미)", tan:22.4, dan:10.2, ji:7.5, type:"simple"},
-        {name:"양배추샐러드(참깨소스)", tan:8.2, dan:1.2, ji:6.4, type:"simple"},
-        {name:"마시는요거트(사과) & 배추김치", tan:18.5, dan:2.4, ji:1.5, type:"simple"}
+        {name:"목살필라프(급식정량)", tan:68.2, dan:16.4, ji:10.5, na:580, isDelicious:true, type:"complex"},
+        {name:"무맑은국 & 숙주나물무침", tan:4.5, dan:1.4, ji:0.2, na:280, type:"complex"},
+        {name:"깐쇼새우(급식 4미)", tan:22.4, dan:10.2, ji:7.5, na:390, isDelicious:true, type:"simple"},
+        {name:"양배추샐러드(참깨소스)", tan:8.2, dan:1.2, ji:6.4, na:120, type:"simple"},
+        {name:"마시는요거트(사과) & 배추김치", tan:18.5, dan:2.4, ji:1.5, na:190, type:"simple"}
     ],
     "07-07-중식": [
-        {name:"텐동(급식용 미니튀김덮밥)", tan:78.4, dan:15.5, ji:14.2, type:"complex"},
-        {name:"팽이미소된장국", tan:3.8, dan:1.5, ji:0.5, type:"complex"},
-        {name:"두부조림 & 오이콘샐러드", tan:10.2, dan:4.8, ji:4.5, type:"complex"},
-        {name:"유자단무지 & 배추김치", tan:4.8, dan:0.5, ji:0.1, type:"simple"},
-        {name:"망고사고", tan:16.4, dan:0.4, ji:0.8, type:"simple"},
-        {name:"초코칩트위스트(생지)", tan:26.5, dan:3.5, ji:9.8, isFixed:true, type:"simple"}
+        {name:"텐동(급식용 미니튀김덮밥)", tan:78.4, dan:15.5, ji:14.2, na:620, isDelicious:true, type:"complex"},
+        {name:"팽이미소된장국", tan:3.8, dan:1.5, ji:0.5, na:410, type:"complex"},
+        {name:"두부조림 & 오이콘샐러드", tan:10.2, dan:4.8, ji:4.5, na:290, type:"complex"},
+        {name:"유자단무지 & 배추김치", tan:4.8, dan:0.5, ji:0.1, na:180, type:"simple"},
+        {name:"망고사고", tan:16.4, dan:0.4, ji:0.8, na:45, type:"simple"},
+        {name:"초코칩트위스트(생지)", tan:26.5, dan:3.5, ji:9.8, na:160, isFixed:true, type:"simple"}
     ],
     "07-07-석식": [
-        {name:"찹쌀현미밥", tan:70.5, dan:6.1, ji:0.8, type:"complex"},
-        {name:"부대찌개(급식 규격 소량)", tan:10.2, dan:9.5, ji:9.8, type:"complex"},
-        {name:"언양식불고기(급식찬)", tan:12.4, dan:16.8, ji:11.2, type:"protein"},
-        {name:"파채무침 & 파프리카버섯볶음", tan:6.2, dan:1.5, ji:1.8, type:"complex"},
-        {name:"식혜(친환경) & 배추김치", tan:24.5, dan:0.4, ji:0.1, type:"simple"}
+        {name:"찹쌀현미밥", tan:70.5, dan:6.1, ji:0.8, na:5, type:"complex"},
+        {name:"부대찌개(급식 규격 소량)", tan:10.2, dan:9.5, ji:9.8, na:740, isDelicious:true, type:"complex"},
+        {name:"언양식불고기(급식찬)", tan:12.4, dan:16.8, ji:11.2, na:430, isDelicious:true, type:"protein"},
+        {name:"파채무침 & 파프리카버섯볶음", tan:6.2, dan:1.5, ji:1.8, na:210, type:"complex"},
+        {name:"식혜(친환경) & 배추김치", tan:24.5, dan:0.4, ji:0.1, na:90, type:"simple"}
     ],
     "07-08-중식": [
-        {name:"하이라이스", tan:82.4, dan:11.2, ji:8.5, type:"complex"},
-        {name:"샐러드고로케", tan:22.5, dan:3.2, ji:9.4, type:"simple"},
-        {name:"들기름도토리묵무침-자율", tan:8.4, dan:1.2, ji:3.2, type:"complex"},
-        {name:"톳가락국수+초고추장(자율)", tan:24.2, dan:2.8, ji:0.8, type:"complex"},
-        {name:"배추김치 & 사과주스", tan:22.4, dan:0.3, ji:0.1, type:"simple"}
+        {name:"하이라이스", tan:82.4, dan:11.2, ji:8.5, na:610, type:"complex"},
+        {name:"샐러드고로케", tan:22.5, dan:3.2, ji:9.4, na:320, type:"simple"},
+        {name:"들기름도토리묵무침-자율", tan:8.4, dan:1.2, ji:3.2, na:190, type:"complex"},
+        {name:"톳가락국수+초고추장(자율)", tan:24.2, dan:2.8, ji:0.8, na:480, type:"complex"},
+        {name:"배추김치 & 사과주스", tan:22.4, dan:0.3, ji:0.1, na:110, type:"simple"}
     ],
     "07-09-중식": [
-        {name:"현미밥(통곡물)", tan:66.4, dan:6.2, ji:0.9, type:"complex"},
-        {name:"미니물냉면", tan:34.5, dan:3.8, ji:0.6, type:"simple"},
-        {name:"맥적(돼지고기된장구이)", tan:6.8, dan:20.5, ji:12.4, type:"protein"},
-        {name:"상추겉절이 & 멸치볶음-자율", tan:4.2, dan:3.5, ji:2.1, type:"complex"},
-        {name:"배추김치 & 파인애플(생과)", tan:12.4, dan:0.5, ji:0.1, type:"simple"}
+        {name:"현미밥(통곡물)", tan:66.4, dan:6.2, ji:0.9, na:4, type:"complex"},
+        {name:"미니물냉면", tan:34.5, dan:3.8, ji:0.6, na:590, type:"simple"},
+        {name:"맥적(돼지고기된장구이)", tan:6.8, dan:20.5, ji:12.4, na:460, isDelicious:true, type:"protein"},
+        {name:"상추겉절이 & 멸치볶음-자율", tan:4.2, dan:3.5, ji:2.1, na:250, type:"complex"},
+        {name:"배추김치 & 파인애플(생과)", tan:12.4, dan:0.5, ji:0.1, na:60, type:"simple"}
     ],
     "07-09-석식": [
-        {name:"보리쌀밥", tan:68.5, dan:6.3, ji:1.0, type:"complex"},
-        {name:"유부배추맑은국", tan:5.2, dan:2.5, ji:1.8, type:"complex"},
-        {name:"찜닭(안동식)", tan:24.0, dan:36.5, ji:14.2, type:"protein"},
-        {name:"무말랭이무침", tan:8.4, dan:1.1, ji:0.2, type:"complex"},
-        {name:"깻잎양념무침", tan:6.2, dan:1.4, ji:0.3, type:"complex"},
-        {name:"고르곤졸라슈크러스트피자", tan:74.5, dan:24.2, ji:26.5, isFixed:true, type:"simple"},
-        {name:"배추김치", tan:3.2, dan:1.0, ji:0.2, type:"complex"}
+        {name:"보리쌀밥", tan:68.5, dan:6.3, ji:1.0, na:5, type:"complex"},
+        {name:"유부배추맑은국", tan:5.2, dan:2.5, ji:1.8, na:320, type:"complex"},
+        {name:"찜닭(안동식)", tan:24.0, dan:36.5, ji:14.2, na:690, isDelicious:true, type:"protein"},
+        {name:"무말랭이무침", tan:8.4, dan:1.1, ji:0.2, na:240, type:"complex"},
+        {name:"깻잎양념무침", tan:6.2, dan:1.4, ji:0.3, na:190, type:"complex"},
+        {name:"고르곤졸라슈크러스트피자", tan:74.5, dan:24.2, ji:26.5, na:550, isFixed:true, type:"simple"},
+        {name:"배추김치", tan:3.2, dan:1.0, ji:0.2, na:140, type:"complex"}
     ],
     "07-10-중식": [
-        {name:"무콩나물밥", tan:69.5, dan:6.8, ji:1.1, type:"complex"},
-        {name:"쇠고기순두부찌개", tan:4.2, dan:11.2, ji:7.8, type:"complex"},
-        {name:"새송이버섯보말볶음-자율", tan:3.8, dan:2.1, ji:1.8, type:"complex"},
-        {name:"열무된장무침(자율) & 배추김치", tan:4.8, dan:1.2, ji:0.2, type:"complex"},
-        {name:"크로크무슈", tan:28.4, dan:10.5, ji:12.4, isFixed:true, type:"simple"},
-        {name:"우유&제티/쥬스 선택", tan:26.2, dan:6.4, ji:4.8, type:"simple"}
+        {name:"무콩나물밥", tan:69.5, dan:6.8, ji:1.1, na:10, type:"complex"},
+        {name:"쇠고기순두부찌개", tan:4.2, dan:11.2, ji:7.8, na:630, type:"complex"},
+        {name:"새송이버섯보말볶음-자율", tan:3.8, dan:2.1, ji:1.8, na:180, type:"complex"},
+        {name:"열무된장무침(자율) & 배추김치", tan:4.8, dan:1.2, ji:0.2, na:220, type:"complex"},
+        {name:"크로크무슈", tan:28.4, dan:10.5, ji:12.4, na:410, isFixed:true, type:"simple"},
+        {name:"우유&제티/쥬스 선택", tan:26.2, dan:6.4, ji:4.8, na:130, type:"simple"}
     ],
     "07-10-석식": [
-        {name:"참치마요덮밥(급식소량)", tan:70.5, dan:14.8, ji:15.4, type:"complex"},
-        {name:"감자된장국", tan:7.5, dan:1.9, ji:0.4, type:"complex"},
-        {name:"볼어묵볶음 & 꼬들단무지무침", tan:11.4, dan:3.8, ji:2.6, type:"complex"},
-        {name:"포기김치 & 옥수수크림파이", tan:28.4, dan:2.8, ji:9.5, isFixed:true, type:"simple"}
+        {name:"참치마요덮밥(급식소량)", tan:70.5, dan:14.8, ji:15.4, na:520, isDelicious:true, type:"complex"},
+        {name:"감자된장국", tan:7.5, dan:1.9, ji:0.4, na:380, type:"complex"},
+        {name:"볼어묵볶음 & 꼬들단무지무침", tan:11.4, dan:3.8, ji:2.6, na:290, type:"complex"},
+        {name:"포기김치 & 옥수수크림파이", tan:28.4, dan:2.8, ji:9.5, na:210, isFixed:true, type:"simple"}
     ],
     "07-13-중식": [
-        {name:"보리기장밥", tan:66.2, dan:5.8, ji:0.7, type:"complex"},
-        {name:"마라탕(급식용 국그릇 1회분)", tan:22.4, dan:14.2, ji:15.4, type:"simple"},
-        {name:"들기름막국수(미니 소량)", tan:32.4, dan:4.2, ji:5.8, type:"complex"},
-        {name:"감자채볶음 & 해파리냉채-자율", tan:11.2, dan:1.4, ji:1.8, type:"complex"},
-        {name:"꽁치구이(자율) & 배추김치", tan:1.2, dan:14.5, ji:8.4, type:"protein"},
-        {name:"요구르트", tan:10.5, dan:0.1, ji:0.0, type:"simple"}
+        {name:"보리기장밥", tan:66.2, dan:5.8, ji:0.7, na:5, type:"complex"},
+        {name:"마라탕(급식용 국그릇 1회분)", tan:22.4, dan:14.2, ji:15.4, na:920, isDelicious:true, type:"simple"},
+        {name:"들기름막국수(미니 소량)", tan:32.4, dan:4.2, ji:5.8, na:340, type:"complex"},
+        {name:"감자채볶음 & 해파리냉채-자율", tan:11.2, dan:1.4, ji:1.8, na:220, type:"complex"},
+        {name:"꽁치구이(자율) & 배추김치", tan:1.2, dan:14.5, ji:8.4, na:380, type:"protein"},
+        {name:"요구르트", tan:10.5, dan:0.1, ji:0.0, na:20, type:"simple"}
     ],
     "07-13-석식": [
-        {name:"차수수밥", tan:68.2, dan:5.9, ji:0.8, type:"complex"},
-        {name:"북어포무국", tan:2.8, dan:5.2, ji:0.6, type:"complex"},
-        {name:"매운돼지갈비찜(급식 3토막)", tan:11.4, dan:22.5, ji:16.8, type:"protein"},
-        {name:"브로콜리-초고추장 & 애느타리깨소스무침", tan:6.4, dan:2.1, ji:2.4, type:"complex"},
-        {name:"콘치즈불고기퀘사디아 & 배추김치", tan:26.4, dan:10.2, ji:11.5, type:"simple"}
+        {name:"차수수밥", tan:68.2, dan:5.9, ji:0.8, na:4, type:"complex"},
+        {name:"북어포무국", tan:2.8, dan:5.2, ji:0.6, na:340, type:"complex"},
+        {name:"매운돼지갈비찜(급식 3토막)", tan:11.4, dan:22.5, ji:16.8, na:590, isDelicious:true, type:"protein"},
+        {name:"브로콜리-초고추장 & 애느타리깨소스무침", tan:6.4, dan:2.1, ji:2.4, na:180, type:"complex"},
+        {name:"콘치즈불고기퀘사디아 & 배추김치", tan:26.4, dan:10.2, ji:11.5, na:360, type:"simple"}
     ],
     "07-14-중식": [
-        {name:"비빔밥(나물 및 고추장)", tan:74.5, dan:8.8, ji:6.2, type:"complex"},
-        {name:"호박잎국(자율) & 고사리볶음-자율", tan:5.8, dan:1.8, ji:1.5, type:"complex"},
-        {name:"달걀후라이 & 배추김치", tan:1.1, dan:6.5, ji:5.8, type:"protein"},
-        {name:"하우스감귤", tan:9.5, dan:0.5, ji:0.1, type:"simple"},
-        {name:"구슬아이스크림", tan:18.4, dan:2.1, ji:3.8, isFixed:true, type:"simple"}
+        {name:"비빔밥(나물 및 고추장)", tan:74.5, dan:8.8, ji:6.2, na:480, type:"complex"},
+        {name:"호박잎국(자율) & 고사리볶음-자율", tan:5.8, dan:1.8, ji:1.5, na:290, type:"complex"},
+        {name:"달걀후라이 & 배추김치", tan:1.1, dan:6.5, ji:5.8, na:140, type:"protein"},
+        {name:"하우스감귤", tan:9.5, dan:0.5, ji:0.1, na:2, type:"simple"},
+        {name:"구슬아이스크림", tan:18.4, dan:2.1, ji:3.8, na:40, isFixed:true, type:"simple"}
     ],
     "07-14-석식": [
-        {name:"발아현미밥", tan:68.4, dan:6.1, ji:0.9, type:"complex"},
-        {name:"김치콩나물국", tan:4.2, dan:2.1, ji:0.6, type:"complex"},
-        {name:"고추마요치킨(급식 4조각)", tan:18.5, dan:18.2, ji:19.4, type:"protein"},
-        {name:"무오이피클 & 양배추샐러드", tan:9.2, dan:0.9, ji:4.2, type:"simple"},
-        {name:"애플망고주스 & 배추김치", tan:22.4, dan:0.3, ji:0.1, type:"simple"}
+        {name:"발아현미밥", tan:68.4, dan:6.1, ji:0.9, na:4, type:"complex"},
+        {name:"김치콩나물국", tan:4.2, dan:2.1, ji:0.6, na:420, type:"complex"},
+        {name:"고추마요치킨(급식 4조각)", tan:18.5, dan:18.2, ji:19.4, na:530, isDelicious:true, type:"protein"},
+        {name:"무오이피클 & 양배추샐러드", tan:9.2, dan:0.9, ji:4.2, na:150, type:"simple"},
+        {name:"애플망고주스 & 배추김치", tan:22.4, dan:0.3, ji:0.1, na:80, type:"simple"}
     ],
     "07-15-중식": [
-        {name:"닭다리백숙(소량 반계 미만)", tan:22.4, dan:28.5, ji:11.2, type:"protein"},
-        {name:"페스츄리치아바타샌드위치", tan:28.4, dan:9.5, ji:10.2, isFixed:true, type:"simple"},
-        {name:"오이지무침(자율) & 숙주무채장아찌무침", tan:5.4, dan:1.1, ji:0.1, type:"complex"},
-        {name:"수제딸기쉐이크(국그릇) & 배추김치", tan:26.5, dan:3.8, ji:3.8, type:"simple"}
+        {name:"닭다리백숙(소량 반계 미만)", tan:22.4, dan:28.5, ji:11.2, na:460, isDelicious:true, type:"protein"},
+        {name:"페스츄리치아바타샌드위치", tan:28.4, dan:9.5, ji:10.2, na:390, isFixed:true, type:"simple"},
+        {name:"오이지무침(자율) & 숙주무채장아찌무침", tan:5.4, dan:1.1, ji:0.1, na:260, type:"complex"},
+        {name:"수제딸기쉐이크(국그릇) & 배추김치", tan:26.5, dan:3.8, ji:3.8, na:140, type:"simple"}
     ],
     "07-15-석식": [
-        {name:"검정쌀밥", tan:69.2, dan:6.1, ji:0.8, type:"complex"},
-        {name:"된장찌개", tan:7.5, dan:4.8, ji:3.2, type:"complex"},
-        {name:"돼지고기수육(급식 정량 80g)", tan:1.5, dan:20.4, ji:22.8, type:"protein"},
-        {name:"상추깻잎/쌈장 & 양파겨자무침", tan:7.8, dan:1.8, ji:1.8, type:"complex"},
-        {name:"초코아이이스슬러쉬 & 배추김치", tan:36.4, dan:1.8, ji:3.2, type:"simple"}
+        {name:"검정쌀밥", tan:69.2, dan:6.1, ji:0.8, na:4, type:"complex"},
+        {name:"된장찌개", tan:7.5, dan:4.8, ji:3.2, na:490, type:"complex"},
+        {name:"돼지고기수육(급식 정량 80g)", tan:1.5, dan:20.4, ji:22.8, na:310, isDelicious:true, type:"protein"},
+        {name:"상추깻잎/쌈장 & 양파겨자무침", tan:7.8, dan:1.8, ji:1.8, na:280, type:"complex"},
+        {name:"초코아이스슬러쉬 & 배추김치", tan:36.4, dan:1.8, ji:3.2, na:110, type:"simple"}
     ],
     "07-16-중식": [
-        {name:"유니짜장면(급식용 규격)", tan:88.4, dan:16.5, ji:18.2, type:"simple"},
-        {name:"다꼬야끼(오븐 3알)", tan:18.2, dan:3.8, ji:5.2, type:"simple"},
-        {name:"단무지 & 배추김치", tan:6.2, dan:0.6, ji:0.1, type:"simple"}
+        {name:"유니짜장면(급식용 규격)", tan:88.4, dan:16.5, ji:18.2, na:840, isDelicious:true, type:"simple"},
+        {name:"다꼬야끼(오븐 3알)", tan:18.2, dan:3.8, ji:5.2, na:290, isDelicious:true, type:"simple"},
+        {name:"단무지 & 배추김치", tan:6.2, dan:0.6, ji:0.1, na:240, type:"simple"}
     ]
 };
 
@@ -278,14 +300,17 @@ const NutriAlgo = {
 
     calculate: function(foods, weights) {
         let totalTan = 0, totalDan = 0, totalJi = 0;
-        // 대한민국 남고생(15~18세) 1식 권장 가이드라인 대사 매트릭스
-        const RDA = { kcal: 900, tan: 135.0, dan: 33.8, ji: 25.0 };
+        let totalNa = 0; // 🌟 [업그레이드 2] 나트륨 합산 변수 추가
+        
+        // 남고생 1식 기준점 매트릭스 (나트륨 기준선 660mg 설정)
+        const RDA = { kcal: 900, tan: 135.0, dan: 33.8, ji: 25.0, na: 660.0 };
         
         foods.forEach((food, index) => {
             const w = weights[index];
             totalTan += food.tan * w;
             totalDan += food.dan * w;
             totalJi += food.ji * w;
+            totalNa += (food.na || 0) * w; // 🌟 [업그레이드 2] 나트륨 가중치 누적 계산
         });
 
         const carbKcal = totalTan * 4;
@@ -293,20 +318,28 @@ const NutriAlgo = {
         const fatKcal = totalJi * 9;
         const totalKcal = carbKcal + proteinKcal + fatKcal;
 
+        // 🌟 [업그레이드 1] 분모 0 체크를 통한 NaN 연산 예외 처리 완벽 차단 인터락
+        const pctTan = totalKcal > 0 ? Math.round((carbKcal / totalKcal) * 100) : 0;
+        const pctDan = totalKcal > 0 ? Math.round((proteinKcal / totalKcal) * 100) : 0;
+        const pctJi = totalKcal > 0 ? Math.round((fatKcal / totalKcal) * 100) : 0;
+        
+        const gls = Math.round((totalTan / RDA.tan) * 100);
+        const lsi = Math.round((totalJi / RDA.ji) * 100);
+        
+        // 영양밀도점수 계산 시 totalKcal가 0일 때 NaN이 되지 않도록 방어선 구축
+        const nbs = totalKcal > 0 ? Math.max(0, Math.min(100, Math.round(100 - Math.abs(60 - (carbKcal/totalKcal*100))*1.5 - Math.abs(15 - (proteinKcal/totalKcal*100))*2.5))) : 0;
+
         return {
             totalKcal: Math.round(totalKcal), totalTan: Math.round(totalTan*10)/10,
             totalDan: Math.round(totalDan*10)/10, totalJi: Math.round(totalJi*10)/10,
-            pctTan: totalKcal ? Math.round((carbKcal / totalKcal) * 100) : 0,
-            pctDan: totalKcal ? Math.round((proteinKcal / totalKcal) * 100) : 0,
-            pctJi: totalKcal ? Math.round((fatKcal / totalKcal) * 100) : 0,
-            gls: Math.round((totalTan / RDA.tan) * 100), lsi: Math.round((totalJi / RDA.ji) * 100),
-            nbs: Math.max(0, Math.min(100, Math.round(100 - Math.abs(60 - (carbKcal/totalKcal*100))*1.5 - Math.abs(15 - (proteinKcal/totalKcal*100))*2.5))), targetKcal: RDA.kcal
+            totalNa: Math.round(totalNa), // 🌟 [업그레이드 2] 결과 객체 바인딩
+            pctTan, pctDan, pctJi, gls, lsi, nbs, 
+            targetKcal: RDA.kcal, targetNa: RDA.na
         };
     },
 
     predictNextMeal: function(res, currentFoods, nextFoods) {
         if (!nextFoods || nextFoods.length === 0) return [];
-        // 버그 픽스: 가중치가 반영된 실시간 최종 결과(res.totalKcal)를 기준으로 과식 여부를 판정
         const isOverfed = res.totalKcal > (res.targetKcal * 1.1);
 
         let lackNutrients = [];
@@ -371,8 +404,9 @@ function loadMenu() {
     const inputArea = document.getElementById('dynamic-input-area');
     const noMealBox = document.getElementById('no-meal-box');
     const resultBox = document.getElementById('result-box');
+    const errorLockBox = document.getElementById('error-lock-box');
 
-    menuListDiv.innerHTML = ""; resultBox.style.display = "none";
+    menuListDiv.innerHTML = ""; resultBox.style.display = "none"; errorLockBox.style.display = "none";
 
     if (!dietDatabase[selectedKey] || dietDatabase[selectedKey].length === 0) {
         inputArea.style.display = "none";
@@ -384,21 +418,35 @@ function loadMenu() {
     inputArea.style.display = "block"; noMealBox.style.display = "none";
 
     dietDatabase[selectedKey].forEach((food, index) => {
-        let card = document.createElement('div'); card.className = 'menu-card';
+        let card = document.createElement('div'); 
+        card.className = 'menu-card';
+        
+        // 🌟 [업그레이드 3] 설문조사 피드백 반영: 선호 메뉴 및 고나트륨 경고에 따른 다채로운 색상 하이라이트 분기 이식
+        if (food.na && food.na >= 600) {
+            card.classList.add('bg-highlight-danger'); // 고나트륨 자극적 음식 색상
+        } else if (food.isDelicious) {
+            card.classList.add('bg-highlight-delicious'); // 학생 선호 맛있는 음식 색상
+        }
+
         const baseKcal = Math.round(NutriAlgo.getSingleKcal(food));
 
         if (food.isFixed) {
             const fixedOptions = PORTIONS.map((p, i) => {
                 if (p.value !== "1.0" && p.value !== "0.0") return "";
-                return `<input type="radio" class="visually-hidden portion-input" id="w-${index}-${i}" name="w-${index}" value="${p.value}" ${p.value === "1.0" ? "checked" : ""}><label class="portion-btn" for="w-${index}-${i}">${p.label}<span class="portion-pct">${p.pct}</span></label>`;
+                return `<input type="radio" class="visually-hidden portion-input" id="w-${index}-${i}" name="w-${index}" value="${p.value}" ${p.value === "1.0" ? "checked" : ""} onchange="triggerRealtimeCalc()"><label class="portion-btn" for="w-${index}-${i}">${p.label}<span class="portion-pct">${p.pct}</span></label>`;
             }).join("");
-            card.innerHTML = `<div class="menu-card-head"><span class="menu-name">${food.name} <span class="menu-kcal-tag">${baseKcal} kcal</span></span><span class="fixed-badge">규격 완제품</span></div><div class="portion-group" style="grid-template-columns: repeat(2, 1fr);">${fixedOptions}</div>`;
+            card.innerHTML = `<div class="menu-card-head"><span class="menu-name">${food.name} <span class="menu-kcal-tag">${baseKcal} kcal</span><span class="menu-na-tag">${food.na}mg</span></span><span class="fixed-badge">규격 완제품</span></div><div class="portion-group" style="grid-template-columns: repeat(2, 1fr);">${fixedOptions}</div>`;
         } else {
-            const options = PORTIONS.map((p, i) => `<input type="radio" class="visually-hidden portion-input" id="w-${index}-${i}" name="w-${index}" value="${p.value}" ${p.value === "1.0" ? "checked" : ""}><label class="portion-btn" for="w-${index}-${i}">${p.label}<span class="portion-pct">${p.pct}</span></label>`).join("");
-            card.innerHTML = `<div class="menu-card-head"><span class="menu-name">${food.name} <span class="menu-kcal-tag">${baseKcal} kcal</span></span></div><div class="portion-group">${options}</div>`;
+            const options = PORTIONS.map((p, i) => `<input type="radio" class="visually-hidden portion-input" id="w-${index}-${i}" name="w-${index}" value="${p.value}" ${p.value === "1.0" ? "checked" : ""} onchange="triggerRealtimeCalc()"><label class="portion-btn" for="w-${index}-${i}">${p.label}<span class="portion-pct">${p.pct}</span></label>`).join("");
+            card.innerHTML = `<div class="menu-card-head"><span class="menu-name">${food.name} <span class="menu-kcal-tag">${baseKcal} kcal</span><span class="menu-na-tag">${food.na}mg</span></span></div><div class="portion-group">${options}</div>`;
         }
         menuListDiv.appendChild(card);
     });
+}
+
+function triggerRealtimeCalc() {
+    // 실시간 선택 변화가 생길 경우 인터락 해제를 유도하는 안전 장치
+    document.getElementById('error-lock-box').style.display = "none";
 }
 
 loadMenu();
@@ -440,6 +488,7 @@ document.getElementById('student-id').addEventListener('input', () => { renderHi
 
 function updateIndexBadge(elementId, value, normalMax, warnMax) {
     const badge = document.getElementById(elementId);
+    if (!badge) return;
     if (value <= normalMax) { badge.className = "index-badge badge-normal"; badge.textContent = "정상"; }
     else if (value <= warnMax) { badge.className = "index-badge badge-warn"; badge.textContent = "주의"; }
     else { badge.className = "index-badge badge-danger"; badge.textContent = "위험"; }
@@ -452,12 +501,33 @@ function runAnalysis() {
     foods.forEach((food, index) => { const checked = document.querySelector(`input[name="w-${index}"]:checked`); weights.push(checked ? parseFloat(checked.value) : 1.0); });
 
     const currentResult = NutriAlgo.calculate(foods, weights);
+    
+    // 🌟 [업그레이드 1] 모든 메뉴 안먹음(가중치 0.0) 선택 시 NaN 발생 차단 방어막 활성화
+    const errorLockBox = document.getElementById('error-lock-box');
+    const resultBox = document.getElementById('result-box');
+    
+    if (currentResult.totalKcal === 0) {
+        resultBox.style.display = 'none';
+        errorLockBox.innerHTML = `<b>⚠️ 인터락 감지:</b> 모든 메뉴가 '안먹음'으로 선택되었습니다. 분모 차단 버그를 방지하기 위해 연산을 보류합니다. 최소 한 개 이상의 급식 반찬 배식량을 결정해주세요.`;
+        errorLockBox.style.display = 'block';
+        errorLockBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+    } else {
+        errorLockBox.style.display = 'none';
+    }
+
     const currentIdx = keys.indexOf(selectedKey);
     const nextKey = keys[currentIdx + 1] || keys[0];
 
     document.getElementById('kcal-output').textContent = `${currentResult.totalKcal} kcal`;
     const diff = currentResult.totalKcal - currentResult.targetKcal;
     document.getElementById('kcal-diff-sub').textContent = diff >= 0 ? `남고생 1식 권장 대비 +${diff} kcal 초과` : `남고생 1식 권장 대비 ${Math.abs(diff)} kcal 부족`;
+
+    // 🌟 [업그레이드 2] 나트륨 출력 레이블 렌더링 엔진 작동
+    document.getElementById('na-output').textContent = `${currentResult.totalNa} mg`;
+    const naDiff = currentResult.totalNa - currentResult.targetNa;
+    document.getElementById('na-diff-sub').textContent = naDiff >= 0 ? `남고생 1식 제한량 대비 +${naDiff} mg 초과` : `권장 제한선까지 ${Math.abs(naDiff)} mg 여유`;
+    updateIndexBadge('na-badge', currentResult.totalNa, currentResult.targetNa, currentResult.targetNa * 1.2);
 
     document.getElementById('pfc-t').textContent = `${currentResult.pctTan}% (${currentResult.totalTan}g)──`;
     document.getElementById('pfc-d').textContent = `${currentResult.pctDan}% (${currentResult.totalDan}g)──`;
@@ -480,7 +550,7 @@ function runAnalysis() {
         });
     }
 
-    document.getElementById('result-box').style.display = 'block';
+    resultBox.style.display = 'block';
 
     const id = currentStudentId();
     if (id) {
@@ -490,7 +560,7 @@ function runAnalysis() {
         while (list.length > HISTORY_LIMIT) list.shift();
         writeHistory(id, list); renderHistory(id);
     }
-    document.getElementById('result-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    resultBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 </script>
 </body>
